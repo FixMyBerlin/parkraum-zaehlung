@@ -1,0 +1,73 @@
+{
+  "name": "parkraum-zaehlung",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Count parked vehicles per street edge (left/right) for occupancy analysis",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "FORCE_COLOR=1 bun --bun vite dev --host 127.0.0.1 --strictPort",
+    "build": "FORCE_COLOR=1 bun --bun vite build",
+    "preview": "FORCE_COLOR=1 bun --bun vite preview --host 127.0.0.1 --strictPort",
+    "type-check": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "oxlint --fix --fix-dangerously --deny-warnings -c oxlint.config.mjs .",
+    "lint-check": "oxlint --deny-warnings -c oxlint.config.mjs .",
+    "format": "oxfmt --write -c oxfmt.config.mjs .",
+    "format-check": "oxfmt --check -c oxfmt.config.mjs .",
+    "test-run": "vitest run --passWithNoTests src",
+    "check": "bun run --parallel type-check lint format test-run knip-warn",
+    "check-ci": "bun run --parallel type-check lint-check format-check test-run",
+    "knip": "KNIP_STRICT=1 knip --config knip.config.mjs",
+    "knip-warn": "knip --config knip.config.mjs || true",
+    "check-pre-push": "bun run --parallel type-check lint format test-run knip-warn",
+    "e2e": "playwright test --project=chromium"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.2",
+    "@tanstack/react-router": "^1.131.28",
+    "clsx": "^2.1.1",
+    "idb-keyval": "^6.2.2",
+    "maplibre-gl": "^5.7.1",
+    "osm-auth": "^3.0.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-map-gl": "^8.0.4",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.0.17",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/router-plugin": "^1.131.28",
+    "@types/geojson": "^7946.0.16",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@typescript/typescript-darwin-arm64": "^7.0.0",
+    "@vitejs/plugin-react": "^6.1.0",
+    "browserslist": "^4.25.3",
+    "browserslist-to-esbuild": "^2.1.1",
+    "bun-types": "^1.2.20",
+    "eslint-plugin-compat": "^7.0.2",
+    "knip": "^6.31.0",
+    "oxc-transform-react": "^0.145.0",
+    "oxfmt": "0.60.0",
+    "oxlint": "1.79.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.0",
+    "vite": "^8.0.0",
+    "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@typescript/typescript-linux-x64": "^7.0.0"
+  },
+  "browserslist": [
+    "defaults",
+    "not ie 11",
+    "not op_mini all"
+  ],
+  "trustedDependencies": [
+    "eslint-plugin-compat"
+  ]
+}
