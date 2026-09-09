@@ -11,7 +11,7 @@ bun install
 bun run dev
 ```
 
-Then click **Testdatensatz laden** or upload `public/fixtures/loerrach-sample.geojson`.
+Download [Testdaten herunterladen (dann hochladen)](https://github.com/FixMyBerlin/parkraum-zaehlung/raw/main/public/fixtures/loerrach-sample.geojson), then upload the file with **Datei wählen**.
 
 ```bash
 bun run check

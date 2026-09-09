@@ -1,4 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
+import { Subheading } from '@/components/ui/heading'
+import { Text } from '@/components/ui/text'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
@@ -11,6 +14,9 @@ import {
 } from '@/shared/counts/export-counts'
 import { countsFileSchema } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
+
+const filePickerLabelClassName =
+  'relative isolate inline-flex cursor-pointer items-baseline justify-center rounded-lg border border-zinc-950/10 px-[calc(--spacing(3)-1px)] py-[calc(--spacing(1.5)-1px)] text-sm/6 font-semibold text-zinc-950 hover:bg-zinc-950/2.5 dark:border-white/15 dark:text-white dark:hover:bg-white/5'
 
 export function ExportPanel() {
   const queryClient = useQueryClient()
@@ -45,26 +51,24 @@ export function ExportPanel() {
 
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold">Zählungen</h2>
-      <p className="mb-2 text-xs text-slate-400">
+      <Subheading className="mb-2">Zählungen</Subheading>
+      <Text className="mb-2">
         {auth.configured && auth.authenticated
           ? `Gespeichert als ${auth.displayName ?? 'OSM-Nutzer'}`
           : 'Speicherung im Browser (localStorage), bis die KV-API da ist.'}
-      </p>
+      </Text>
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
-          className="rounded bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700"
           data-testid="export-json"
           onClick={() => {
             downloadJson(exportFilename('counts', dataset), buildCountsFile(dataset, records))
           }}
         >
           JSON exportieren
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="rounded bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700"
           data-testid="export-geojson"
           onClick={() => {
             downloadJson(
@@ -74,8 +78,8 @@ export function ExportPanel() {
           }}
         >
           GeoJSON exportieren
-        </button>
-        <label className="rounded bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700">
+        </Button>
+        <label className={filePickerLabelClassName}>
           JSON importieren
           <input
             type="file"

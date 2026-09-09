@@ -1,11 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useId, useState } from 'react'
-import { sampleEdgesUrl } from '@/config/app.const'
+import { useEffect, useState } from 'react'
+import { Checkbox, CheckboxField } from '@/components/ui/checkbox'
+import { Description, ErrorMessage, Field, Fieldset, Label } from '@/components/ui/fieldset'
+import { Subheading } from '@/components/ui/heading'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Code, Text, TextLink } from '@/components/ui/text'
+import { sampleEdgesGithubUrl } from '@/config/app.const'
 import { Route } from '@/routes/index'
 import { listDatasets, saveDataset } from '@/shared/datasets/dataset-idb'
 import { parseEdgesText } from '@/shared/edges/parse-edges'
 import { slugifyDatasetName } from '@/shared/edges/schema'
+
+const filePickerLabelClassName =
+  'relative isolate inline-flex cursor-pointer items-baseline justify-center rounded-lg border border-zinc-950/10 px-[calc(--spacing(3)-1px)] py-[calc(--spacing(1.5)-1px)] text-sm/6 font-semibold text-zinc-950 hover:bg-zinc-950/2.5 dark:border-white/15 dark:text-white dark:hover:bg-white/5'
 
 export function DatasetPanel() {
   const queryClient = useQueryClient()
@@ -19,7 +28,6 @@ export function DatasetPanel() {
   })
   const [pendingName, setPendingName] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const nameId = useId()
 
   const importMutation = useMutation({
     mutationFn: async ({ text, name }: { text: string; name?: string }) => {
@@ -52,92 +60,94 @@ export function DatasetPanel() {
     importMutation.mutate({ text, name: pendingName || undefined })
   }
 
-  async function loadSample() {
-    const response = await fetch(sampleEdgesUrl)
-    const text = await response.text()
-    importMutation.mutate({ text })
-  }
-
-  useEffect(() => {
-    if (!edgesUrl || dataset) return
-    let cancelled = false
-    void fetch(edgesUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error(`Kanten-URL nicht lesbar (${response.status})`)
-        return response.text()
-      })
-      .then((text) => {
-        if (cancelled) return
-        importMutation.mutate({ text })
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Kanten-URL fehlgeschlagen')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-    // Import once when `?edges=` is present and no dataset is selected yet.
-  }, [edgesUrl, dataset, importMutation])
+  useEffect(
+    function importEdgesFromSearchUrl() {
+      if (!edgesUrl || dataset) return
+      let cancelled = false
+      void fetch(edgesUrl)
+        .then((response) => {
+          if (!response.ok) throw new Error(`Kanten-URL nicht lesbar (${response.status})`)
+          return response.text()
+        })
+        .then((text) => {
+          if (cancelled) return
+          importMutation.mutate({ text })
+        })
+        .catch((caught: unknown) => {
+          if (!cancelled) {
+            setError(caught instanceof Error ? caught.message : 'Kanten-URL fehlgeschlagen')
+          }
+        })
+      return () => {
+        cancelled = true
+      }
+    },
+    [edgesUrl, dataset, importMutation],
+  )
 
   return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold">Kanten importieren</h2>
-      <p className="mb-2 text-xs text-slate-400">
-        GeoJSON v1 (FeatureCollection). Testdatensatz für Lörrach liegt bei.
-      </p>
-      <label className="mb-2 block text-xs text-slate-300" htmlFor={nameId}>
-        Name, falls die Datei kein <code>metadata.dataset</code> hat
-      </label>
-      <input
-        id={nameId}
-        className="mb-2 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm"
-        value={pendingName}
-        onChange={(event) => setPendingName(event.target.value)}
-        placeholder="loerrach-2026-09"
-      />
-      <div className="flex flex-wrap gap-2">
-        <label className="rounded bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700">
-          Datei wählen
-          <input
-            type="file"
-            accept=".geojson,application/geo+json,application/json"
-            className="sr-only"
-            data-testid="edges-file-input"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) void importFromFile(file)
-            }}
+    <section className="space-y-4">
+      <Fieldset>
+        <Subheading>Kanten importieren</Subheading>
+        <Text>
+          Die Datei kommt aus TILDA: Region → Export → Straßenkanten (<Code>parkings_edges</Code>)
+          als GeoJSON-FeatureCollection (v1).
+        </Text>
+        <Text>
+          <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
+            Testdaten herunterladen (dann hochladen)
+          </TextLink>
+        </Text>
+        <Field>
+          <Label>
+            Name, falls die Datei kein <Code>metadata.dataset</Code> hat
+          </Label>
+          <Input
+            value={pendingName}
+            onChange={(event) => setPendingName(event.target.value)}
+            placeholder="loerrach-2026-09"
           />
-        </label>
-        <button
-          type="button"
-          className="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-600"
-          data-testid="load-sample"
-          onClick={() => void loadSample()}
-        >
-          Testdatensatz laden
-        </button>
-      </div>
-      {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
-      <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-        <input
-          type="checkbox"
+        </Field>
+        <div className="mt-4">
+          <label className={filePickerLabelClassName}>
+            Datei wählen
+            <input
+              type="file"
+              accept=".geojson,application/geo+json,application/json"
+              className="sr-only"
+              data-testid="edges-file-input"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void importFromFile(file)
+              }}
+            />
+          </label>
+        </div>
+        {error ? (
+          <Field>
+            <ErrorMessage>{error}</ErrorMessage>
+          </Field>
+        ) : null}
+      </Fieldset>
+      <CheckboxField>
+        <Checkbox
           checked={parkings}
-          onChange={(event) =>
+          onChange={(checked) =>
             void navigate({
-              search: (previous) => ({ ...previous, parkings: event.target.checked }),
+              search: (previous) => ({ ...previous, parkings: checked }),
             })
           }
         />
-        TILDA-Parkraum als Kontext
-      </label>
+        <Label>TILDA-Parkraum als Kontext</Label>
+        <Description>
+          Blendet die von TILDA kartierten Parkstände auf der Karte ein. So siehst du beim Zählen,
+          wo laut TILDA Parkraum liegt — als Orientierung, nicht als Zählgrundlage.
+        </Description>
+      </CheckboxField>
       {datasetsQuery.data && datasetsQuery.data.length > 0 && (
-        <label className="mt-3 block text-xs text-slate-300">
-          Gespeicherte Datensätze
-          <select
-            className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm"
+        <Field>
+          <Label>Gespeicherte Datensätze</Label>
+          <Select
             value={dataset ?? ''}
             onChange={(event) => {
               const next = event.target.value || undefined
@@ -152,8 +162,8 @@ export function DatasetPanel() {
                 {item.dataset}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
     </section>
   )

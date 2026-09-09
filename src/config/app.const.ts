@@ -20,7 +20,8 @@ export const kvApiKey = 'kv_4930a245426d9f3ea75a524c7b064c0b1d313ac1'
 export const tildaTilesUrl = 'https://tiles.tilda-geo.de'
 export const tildaParkingsTileset = 'atlas_generalized_parkings,atlas_generalized_parkings_labels'
 
-export const sampleEdgesUrl = `${import.meta.env.BASE_URL}fixtures/loerrach-sample.geojson`
+export const sampleEdgesGithubUrl =
+  'https://github.com/FixMyBerlin/parkraum-zaehlung/raw/main/public/fixtures/loerrach-sample.geojson'
 
 export const loerrachMapFallback = { zoom: 15.4, lat: 47.6148, lng: 7.6616 } as const
 

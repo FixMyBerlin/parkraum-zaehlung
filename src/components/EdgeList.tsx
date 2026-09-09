@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
+import { Checkbox, CheckboxField } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/fieldset'
+import { Subheading } from '@/components/ui/heading'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
@@ -30,43 +34,42 @@ export function EdgeList() {
 
   return (
     <section>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Kanten</h2>
-        <label className="flex items-center gap-1 text-xs text-slate-400">
-          <input
-            type="checkbox"
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <Subheading>Kanten</Subheading>
+        <CheckboxField>
+          <Checkbox
             checked={uncounted}
-            onChange={(event) =>
+            onChange={(checked) =>
               void navigate({
-                search: (previous) => ({ ...previous, uncounted: event.target.checked }),
+                search: (previous) => ({ ...previous, uncounted: checked }),
               })
             }
           />
-          nur ungezählt
-        </label>
+          <Label>nur ungezählt</Label>
+        </CheckboxField>
       </div>
-      <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">
+      <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
         {features.map((feature) => {
           const sides = countedSides(records[feature.properties.id])
           const selected = feature.properties.id === selectedId
           return (
             <li key={feature.properties.id}>
-              <button
+              <Button
+                plain
                 type="button"
                 data-testid={`edge-list-${feature.properties.id}`}
-                className={cn(
-                  'w-full rounded px-2 py-1 text-left hover:bg-slate-800',
-                  selected && 'bg-slate-800 text-sky-200',
-                )}
+                className={cn('w-full', selected && 'bg-white/10 text-sky-200')}
                 onClick={() =>
                   void navigate({
                     search: (previous) => ({ ...previous, edge: feature.properties.id }),
                   })
                 }
               >
-                <span>{feature.properties.name ?? feature.properties.id}</span>
-                <span className="ml-2 text-slate-500">{sides}/2</span>
-              </button>
+                <span className="flex w-full items-baseline justify-between gap-2 text-left">
+                  <span>{feature.properties.name ?? feature.properties.id}</span>
+                  <span className="text-zinc-500">{sides}/2</span>
+                </span>
+              </Button>
             </li>
           )
         })}

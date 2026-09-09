@@ -9,7 +9,7 @@ type ProgressSummaryProps = {
 
 export function ProgressSummary({ edges, records }: ProgressSummaryProps) {
   if (!edges) {
-    return <p className="text-xs text-slate-500">Noch keine Kanten geladen</p>
+    return <p className="text-xs/5 text-zinc-400">Noch keine Kanten geladen</p>
   }
   const total = edges.features.length
   const counted = edges.features.filter(
@@ -21,7 +21,7 @@ export function ProgressSummary({ edges, records }: ProgressSummaryProps) {
     .reduce((sum, feature) => sum + (feature.properties.length ?? 0), 0)
 
   return (
-    <p className="text-xs text-slate-300" data-testid="progress-summary">
+    <p className="text-xs/5 text-zinc-400" data-testid="progress-summary">
       {counted}/{total} Kanten · {Math.round(countedMetres)}/{Math.round(metres)} m
     </p>
   )

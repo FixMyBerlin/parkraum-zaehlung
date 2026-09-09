@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { isKvConfigured } from '@/config/app.const'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 
@@ -6,35 +7,36 @@ export function AuthButton() {
 
   if (!auth.configured) {
     return (
-      <p className="max-w-56 text-right text-xs text-slate-500">
+      <p className="text-xs/5 text-zinc-400">
         OSM-Login nach Client-ID in <code>app.const.ts</code>
       </p>
     )
   }
 
   if (auth.authenticated) {
+    const displayName = auth.displayName ?? 'OSM'
     return (
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-slate-300">{auth.displayName ?? 'OSM'}</span>
-        {!isKvConfigured() && <span className="text-amber-400">lokal</span>}
-        <button
-          type="button"
-          className="rounded border border-slate-600 px-2 py-1 hover:bg-slate-800"
-          onClick={auth.logout}
+      <div className="flex items-center gap-3">
+        <div
+          aria-hidden="true"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-200 ring-1 ring-white/10"
         >
+          {displayName.slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm/5 font-medium text-white">{displayName}</p>
+          {!isKvConfigured() && <p className="text-xs/5 text-amber-400">lokal</p>}
+        </div>
+        <Button outline onClick={auth.logout}>
           Abmelden
-        </button>
+        </Button>
       </div>
     )
   }
 
   return (
-    <button
-      type="button"
-      className="rounded bg-sky-600 px-3 py-1 text-xs font-medium text-white hover:bg-sky-500"
-      onClick={auth.login}
-    >
+    <Button color="sky" className="w-full" onClick={auth.login}>
       Mit OSM anmelden
-    </button>
+    </Button>
   )
 }

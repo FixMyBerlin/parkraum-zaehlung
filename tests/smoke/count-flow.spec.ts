@@ -5,7 +5,9 @@ test.describe('counting flow', () => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Parkraum-Zählung' })).toBeVisible()
 
-    await page.getByTestId('load-sample').click()
+    await page
+      .getByTestId('edges-file-input')
+      .setInputFiles('public/fixtures/loerrach-sample.geojson')
     await expect(page.getByText('Datensatz loerrach-sample')).toBeVisible()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
