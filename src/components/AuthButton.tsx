@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { isKvConfigured } from '@/config/app.const'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 
 export function AuthButton() {
@@ -25,7 +24,6 @@ export function AuthButton() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm/5 font-medium text-white">{displayName}</p>
-          {!isKvConfigured() && <p className="text-xs/5 text-amber-400">lokal</p>}
         </div>
         <Button outline onClick={auth.logout}>
           Abmelden

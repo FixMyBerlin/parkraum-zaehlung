@@ -30,7 +30,7 @@
     "clsx": "^2.1.1",
     "idb-keyval": "^6.2.2",
     "maplibre-gl": "^5.7.1",
-    "osm-auth": "^3.0.0",
+    "osm-api": "^4.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-map-gl": "^8.0.4",

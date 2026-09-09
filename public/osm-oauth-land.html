@@ -11,9 +11,7 @@
         if (!params.has('code') && !params.has('error')) return
 
         if (window.opener) {
-          if (typeof window.opener.authComplete === 'function') {
-            window.opener.authComplete(location.href)
-          }
+          new BroadcastChannel('osm-api-auth-complete').postMessage(location.href)
           window.close()
           return
         }

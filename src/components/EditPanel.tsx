@@ -10,6 +10,7 @@ import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
+import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { emptySideCount, type CountRecord, type SideCount } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
@@ -52,6 +53,7 @@ export function EditPanel() {
   const saveMutation = useMutation({
     mutationFn: async (record: CountRecord) => {
       if (!dataset || !edgeId) throw new Error('missing')
+      if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
       return countStore.put(dataset, edgeId, record)
     },
     onSuccess: async () => {
@@ -62,6 +64,7 @@ export function EditPanel() {
   const clearMutation = useMutation({
     mutationFn: async () => {
       if (!dataset || !edgeId) return
+      if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
       await countStore.remove(dataset, edgeId)
     },
     onSuccess: async () => {
@@ -174,6 +177,7 @@ export function EditPanel() {
           <Label>Notiz</Label>
           <Input name="note" defaultValue={saved?.note ?? ''} autoComplete="off" />
         </Field>
+        {!auth.authenticated ? <Text>{osmLoginRequiredMessage}</Text> : null}
         {saveMutation.isError ? (
           <p className="text-sm/6 text-red-500">
             {saveMutation.error instanceof Error
@@ -181,11 +185,19 @@ export function EditPanel() {
               : 'Speichern fehlgeschlagen'}
           </p>
         ) : null}
+        {clearMutation.isError ? (
+          <p className="text-sm/6 text-red-500">
+            {clearMutation.error instanceof Error
+              ? clearMutation.error.message
+              : 'Löschen fehlgeschlagen'}
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             color="sky"
             data-testid="save-count"
+            disabled={!auth.authenticated}
             onClick={(event) => {
               const form = event.currentTarget.closest('form')
               if (form) saveFromForm(form)
@@ -193,7 +205,12 @@ export function EditPanel() {
           >
             Speichern
           </Button>
-          <Button type="button" outline onClick={() => clearMutation.mutate()}>
+          <Button
+            type="button"
+            outline
+            disabled={!auth.authenticated}
+            onClick={() => clearMutation.mutate()}
+          >
             Löschen
           </Button>
           <Button

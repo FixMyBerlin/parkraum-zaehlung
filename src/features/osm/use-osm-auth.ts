@@ -1,27 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { isOsmLoginConfigured } from '@/config/app.const'
-import {
-  completeOsmLoginFromUrl,
-  getOsmAuth,
-  getOsmToken,
-  loginWithOsm,
-  logoutOsm,
-} from '@/shared/osm/osm-auth'
-
-type OsmUser = {
-  displayName: string
-}
-
-async function fetchOsmUser(): Promise<OsmUser | null> {
-  const auth = getOsmAuth()
-  if (!auth?.authenticated()) return null
-  const response = await auth.fetch('/api/0.6/user/details.json', { method: 'GET' })
-  if (!response.ok) return null
-  const payload = (await response.json()) as { user?: { display_name?: string } }
-  const displayName = payload.user?.display_name
-  return displayName ? { displayName } : null
-}
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { isKvConfigured, isOsmLoginConfigured } from '@/config/app.const'
+import { kv } from '@/shared/kv/kv'
+import { loginWithOsm, logoutOsm, waitForOsmAuth } from '@/shared/osm/osm-auth'
 
 function stripOauthParamsFromUrl() {
   const url = new URL(window.location.href)
@@ -33,38 +14,52 @@ function stripOauthParamsFromUrl() {
 }
 
 export function useOsmAuth() {
-  const [authenticated, setAuthenticated] = useState(() => getOsmAuth()?.authenticated() ?? false)
-
-  useEffect(() => {
-    if (!window.location.search.includes('code=')) return
-    let cancelled = false
-    void completeOsmLoginFromUrl(window.location.search).then((completed) => {
-      if (cancelled || !completed) return
-      setAuthenticated(true)
-      stripOauthParamsFromUrl()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const userQuery = useQuery({
-    queryKey: ['osm-user'],
-    queryFn: fetchOsmUser,
-    enabled: isOsmLoginConfigured() && authenticated,
+  const queryClient = useQueryClient()
+  const authQuery = useQuery({
+    queryKey: ['osm-session'],
+    queryFn: waitForOsmAuth,
   })
+  const loggedIn = authQuery.data === true
+
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => kv.me(),
+    enabled: loggedIn && isKvConfigured(),
+  })
+
+  useEffect(
+    function stripOauthParamsFromUrlAfterAuthReady() {
+      if (!authQuery.isSuccess) return
+      const url = new URL(window.location.href)
+      if (
+        !url.searchParams.has('code') &&
+        !url.searchParams.has('state') &&
+        !url.searchParams.has('error')
+      ) {
+        return
+      }
+      stripOauthParamsFromUrl()
+    },
+    [authQuery.isSuccess],
+  )
 
   return {
     configured: isOsmLoginConfigured(),
-    authenticated,
-    displayName: userQuery.data?.displayName,
-    token: getOsmToken(),
+    authenticated: loggedIn,
+    displayName: meQuery.data?.user.display_name,
+    canWrite: meQuery.data?.can_write,
     login: () => {
       loginWithOsm()
     },
     logout: () => {
-      logoutOsm()
-      setAuthenticated(false)
+      void kv
+        .forget()
+        .catch(() => undefined)
+        .then(() => {
+          logoutOsm()
+          void queryClient.invalidateQueries({ queryKey: ['osm-session'] })
+          void queryClient.invalidateQueries({ queryKey: ['me'] })
+        })
     },
   }
 }

@@ -12,6 +12,7 @@ import {
   exportGeojsonFilename,
   mergeCountsIntoEdges,
 } from '@/shared/counts/export-counts'
+import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { countsFileSchema } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
@@ -36,6 +37,7 @@ export function ExportPanel() {
   const importCounts = useMutation({
     mutationFn: async (text: string) => {
       if (!dataset) throw new Error('Kein Datensatz gewählt')
+      if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
       const parsed = countsFileSchema.parse(JSON.parse(text))
       return countStore.merge(dataset, parsed.records)
     },
@@ -53,9 +55,9 @@ export function ExportPanel() {
     <section>
       <Subheading className="mb-2">Zählungen</Subheading>
       <Text className="mb-2">
-        {auth.configured && auth.authenticated
-          ? `Gespeichert als ${auth.displayName ?? 'OSM-Nutzer'}`
-          : 'Speicherung im Browser (localStorage), bis die KV-API da ist.'}
+        {auth.authenticated
+          ? `Gespeichert als ${auth.displayName ?? 'OSM-Nutzer'} auf der KV-API`
+          : 'Zählungen liegen auf der gemeinsamen Cloudflare-KV-API. Lesen ist öffentlich; Speichern erfordert OSM-Anmeldung.'}
       </Text>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -86,6 +88,7 @@ export function ExportPanel() {
             accept="application/json,.json"
             className="sr-only"
             data-testid="counts-file-input"
+            disabled={!auth.authenticated}
             onChange={(event) => {
               const file = event.target.files?.[0]
               if (!file) return
@@ -94,6 +97,13 @@ export function ExportPanel() {
           />
         </label>
       </div>
+      {importCounts.isError ? (
+        <Text className="mt-2">
+          {importCounts.error instanceof Error
+            ? importCounts.error.message
+            : 'Import fehlgeschlagen'}
+        </Text>
+      ) : null}
     </section>
   )
 }

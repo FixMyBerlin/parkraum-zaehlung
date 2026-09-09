@@ -27,11 +27,13 @@ OSM OAuth 2 app must stay **non-confidential** (`read_prefs`) with both redirect
 - `http://127.0.0.1:33478/osm-oauth-land.html`
 - `https://fixmyberlin.github.io/parkraum-zaehlung/osm-oauth-land.html`
 
-Login uses [`osm-auth`](https://github.com/osmlab/osm-auth) in `singlepage` mode. Writes to the KV API require a logged-in OSM user (`write_access: any_osm_user`).
+Login uses [`osm-api`](https://github.com/osmlab/osm-api-js) v4 in **redirect PKCE** mode (not popup: OSM sends `COOP: same-origin`). The land page is `public/osm-oauth-land.html`. Redirect URIs are already registered on the OSM OAuth app above.
+
+Writes to the KV API require a logged-in OSM user (`Authorization: Bearer <OSM token>`).
 
 ## Storage
 
-- Counts: production KV Worker (`kvBaseUrl` / `kvProject` / `kvApiKey` in `app.const.ts`). Reads are public; writes send `Authorization: Bearer <OSM token>`.
+- Counts: production Cloudflare Worker at `https://key-value-store.fixmycity.workers.dev` (`kvBaseUrl` / `kvProject` / `kvApiKey` in `app.const.ts`). **Reads are public** (no OSM token). **Writes send the OSM Bearer token.** The SPA uses a vendored `@kv/client` from [key-value-db](https://github.com/FixMyBerlin/key-value-db) (`src/shared/kv-client/`). If KV is not configured, counts fall back to `localStorage`.
 - Edge snapshots: IndexedDB (`idb-keyval`)
 - Hand files around with **JSON exportieren** / **JSON importieren** (newer `updated_at` wins)
 

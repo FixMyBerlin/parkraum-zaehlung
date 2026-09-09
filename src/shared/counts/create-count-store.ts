@@ -1,16 +1,10 @@
-import { isKvConfigured, kvApiKey, kvBaseUrl, kvProject } from '@/config/app.const'
+import { isKvConfigured } from '@/config/app.const'
+import { kv } from '@/shared/kv/kv'
 import { type CountStore } from './count-store'
 import { createKvCountStore } from './kv-count-store'
 import { createLocalStorageCountStore } from './local-storage-count-store'
 
-export function createCountStore(getOsmToken: () => string | null): CountStore {
-  if (isKvConfigured()) {
-    return createKvCountStore({
-      baseUrl: kvBaseUrl.replace(/\/$/, ''),
-      project: kvProject,
-      apiKey: kvApiKey,
-      getOsmToken,
-    })
-  }
-  return createLocalStorageCountStore()
+export function createCountStore(): CountStore {
+  if (!isKvConfigured()) return createLocalStorageCountStore()
+  return createKvCountStore(kv)
 }
