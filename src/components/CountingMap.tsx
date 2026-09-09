@@ -12,9 +12,19 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { decorateEdges } from '@/features/edges/decorate-edges'
-import { useHoveredSide, useMapUiActions } from '@/features/map/map-ui-store'
+import {
+  useFocusedCountSide,
+  useHoveredEdgeId,
+  useHoveredSide,
+  useMapUiActions,
+} from '@/features/map/map-ui-store'
 import { Route } from '@/routes/index'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
+import {
+  EDGE_SIDE_LINE_COLOR,
+  EDGE_SIDE_LINE_OFFSET,
+  edgeSideLineWidth,
+} from '@/shared/map/edge-side-style'
 import { exposeMainMapForDebugging } from '@/shared/map/expose-main-map'
 import {
   EDGES_ARROWS_LAYER_ID,
@@ -37,8 +47,16 @@ export function CountingMap() {
   const search = Route.useSearch()
   const map = searchMapParam(search)
   const { dataset, edge, uncounted, parkings } = search
+  const hoveredEdgeId = useHoveredEdgeId()
   const hoveredSide = useHoveredSide()
+  const focusedCountSide = useFocusedCountSide()
   const { setHover } = useMapUiActions()
+  const sideLineArgs = {
+    hoveredEdgeId,
+    hoveredSide,
+    focusedCountSide,
+    selectedEdgeId: edge,
+  }
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
@@ -131,6 +149,19 @@ export function CountingMap() {
       {geojson && (
         <>
           <Source id={EDGES_SOURCE_ID} type="geojson" data={geojson} promoteId="id" />
+          {edge && (
+            <Layer
+              id={EDGES_SELECTED_LAYER_ID}
+              type="line"
+              source={EDGES_SOURCE_ID}
+              filter={['==', ['get', 'id'], edge]}
+              paint={{
+                'line-width': 8,
+                'line-color': '#f8fafc',
+                'line-opacity': 0.35,
+              }}
+            />
+          )}
           <Layer
             id={EDGES_LAYER_ID}
             type="line"
@@ -153,9 +184,9 @@ export function CountingMap() {
             type="line"
             source={EDGES_SOURCE_ID}
             paint={{
-              'line-width': hoveredSide === 'left' ? 6 : 3,
-              'line-offset': -6,
-              'line-color': '#38bdf8',
+              'line-width': edgeSideLineWidth('left', sideLineArgs),
+              'line-offset': -EDGE_SIDE_LINE_OFFSET,
+              'line-color': EDGE_SIDE_LINE_COLOR.left,
               'line-opacity': 0.85,
             }}
           />
@@ -164,9 +195,9 @@ export function CountingMap() {
             type="line"
             source={EDGES_SOURCE_ID}
             paint={{
-              'line-width': hoveredSide === 'right' ? 6 : 3,
-              'line-offset': 6,
-              'line-color': '#fb7185',
+              'line-width': edgeSideLineWidth('right', sideLineArgs),
+              'line-offset': EDGE_SIDE_LINE_OFFSET,
+              'line-color': EDGE_SIDE_LINE_COLOR.right,
               'line-opacity': 0.85,
             }}
           />
@@ -187,19 +218,6 @@ export function CountingMap() {
               'text-color': '#e2e8f0',
             }}
           />
-          {edge && (
-            <Layer
-              id={EDGES_SELECTED_LAYER_ID}
-              type="line"
-              source={EDGES_SOURCE_ID}
-              filter={['==', ['get', 'id'], edge]}
-              paint={{
-                'line-width': 8,
-                'line-color': '#f8fafc',
-                'line-opacity': 0.35,
-              }}
-            />
-          )}
         </>
       )}
     </Map>

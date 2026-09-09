@@ -1,18 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { type FormEvent, useId } from 'react'
+import { type FormEvent, useEffect, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
+import { useFocusedCountSide, useMapUiActions } from '@/features/map/map-ui-store'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { emptySideCount, type CountRecord, type SideCount } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
+import { EDGE_SIDE_LINE_COLOR } from '@/shared/map/edge-side-style'
+
+const sideLegendClassName = {
+  left: 'border-sky-400 bg-sky-400/25 text-sky-100',
+  right: 'border-rose-400 bg-rose-400/25 text-rose-100',
+} as const
+
+const sideLegendActiveClassName = {
+  left: 'bg-sky-400/45 ring-1 ring-sky-400/60',
+  right: 'bg-rose-400/45 ring-1 ring-rose-400/60',
+} as const
+
+const sideInputFocusClassName = {
+  left: 'focus-visible:ring-sky-400',
+  right: 'focus-visible:ring-rose-400',
+} as const
 
 const categories = [
   { key: 'pkw', label: 'Pkw' },
@@ -20,12 +37,15 @@ const categories = [
   { key: 'lkw_bus', label: 'Lkw/Bus' },
 ] as const
 
-const countInputClassName = cn(
-  'min-h-9 w-full rounded-lg border border-zinc-950/10 bg-transparent px-2 py-1.5 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:border-white/10 dark:bg-white/5 dark:text-white dark:scheme-dark',
-  'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
-  'disabled:cursor-not-allowed disabled:opacity-50 dark:disabled:border-white/15 dark:disabled:bg-white/2.5',
-  '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]',
-)
+function countInputClassName(side: 'left' | 'right') {
+  return cn(
+    'min-h-9 w-full rounded-lg border border-zinc-950/10 bg-transparent px-2 py-1.5 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:border-white/10 dark:bg-white/5 dark:text-white dark:scheme-dark',
+    'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset',
+    sideInputFocusClassName[side],
+    'disabled:cursor-not-allowed disabled:opacity-50 dark:disabled:border-white/15 dark:disabled:bg-white/2.5',
+    '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]',
+  )
+}
 
 export function EditPanel() {
   const queryClient = useQueryClient()
@@ -33,6 +53,15 @@ export function EditPanel() {
   const { dataset, edge: edgeId } = Route.useSearch()
   const auth = useOsmAuth()
   const formId = useId()
+  const { setFocusedCountSide } = useMapUiActions()
+
+  useEffect(
+    function clearFocusedCountSideWhenNoEdge() {
+      if (edgeId) return
+      setFocusedCountSide(null)
+    },
+    [edgeId, setFocusedCountSide],
+  )
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
@@ -258,18 +287,45 @@ function CountSideRow({
   autoFocusCategory: (typeof categories)[number]['key'] | null
 }) {
   const rowHeaderId = `${formId}-${side}`
+  const focusedCountSide = useFocusedCountSide()
+  const { setFocusedCountSide } = useMapUiActions()
+  const isActive = focusedCountSide === side
+
+  useEffect(
+    function highlightAutofocusedCountSide() {
+      if (autoFocusCategory == null) return
+      setFocusedCountSide(side)
+    },
+    [autoFocusCategory, setFocusedCountSide, side],
+  )
+
   return (
-    <tr className={disabled ? 'opacity-50' : undefined}>
+    <tr
+      className={disabled ? 'opacity-50' : undefined}
+      onFocusCapture={() => {
+        if (!disabled) setFocusedCountSide(side)
+      }}
+    >
       <th
         id={rowHeaderId}
         scope="row"
-        className="pr-2 text-left align-middle text-sm font-medium text-zinc-950 dark:text-white"
+        className={cn(
+          'rounded-md border-l-4 px-2 py-1.5 text-left align-middle text-sm font-medium',
+          sideLegendClassName[side],
+          !disabled && isActive && sideLegendActiveClassName[side],
+        )}
+        style={{ borderLeftColor: EDGE_SIDE_LINE_COLOR[side] }}
       >
-        {label}
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="size-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: EDGE_SIDE_LINE_COLOR[side] }}
+          />
+          {label}
+        </span>
         {disabled ? (
-          <span className="mt-0.5 block text-xs font-normal text-zinc-500 dark:text-zinc-400">
-            kein Parken
-          </span>
+          <span className="mt-0.5 block text-xs font-normal text-zinc-400">kein Parken</span>
         ) : null}
       </th>
       {categories.map((category) => {
@@ -288,7 +344,7 @@ function CountSideRow({
               autoFocus={autoFocusCategory === category.key}
               defaultValue={values[category.key] ?? ''}
               aria-labelledby={`${rowHeaderId} ${formId}-${category.key}`}
-              className={countInputClassName}
+              className={countInputClassName(side)}
               data-testid={`${side}-${category.key}`}
               onFocus={(event) => event.currentTarget.select()}
             />
