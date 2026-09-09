@@ -1,6 +1,6 @@
 # Parkraum-Zählung
 
-Web mask to count parked vehicles per street edge (left/right: car, motorcycle, truck/bus). Counts stay in the browser until the shared key-value API is ready.
+Web mask to count parked vehicles per street edge (left/right: car, motorcycle, truck/bus). Counts persist in the shared key-value API after OSM login.
 
 Dev server: [http://127.0.0.1:33478](http://127.0.0.1:33478) (fixed host and port so OSM OAuth redirect URIs stay stable).
 
@@ -20,22 +20,20 @@ bun run e2e
 
 ## OSM login
 
-Register a **non-confidential** OSM OAuth 2 application (`read_prefs`) with both redirect URIs:
+Public client id lives in [`src/config/app.const.ts`](src/config/app.const.ts) (`osmClientId`). No `.env` files, no client secret.
+
+OSM OAuth 2 app must stay **non-confidential** (`read_prefs`) with both redirect URIs:
 
 - `http://127.0.0.1:33478/osm-oauth-land.html`
 - `https://fixmyberlin.github.io/parkraum-zaehlung/osm-oauth-land.html`
 
-Put the public client id in [`src/config/app.const.ts`](src/config/app.const.ts) (`osmClientId`). No `.env` files.
+Login uses [`osm-auth`](https://github.com/osmlab/osm-auth) in `singlepage` mode. Writes to the KV API require a logged-in OSM user (`write_access: any_osm_user`).
 
-Login uses [`osm-auth`](https://github.com/osmlab/osm-auth) in `singlepage` mode. Counts still go to `localStorage` until `kvBaseUrl` is set.
+## Storage
 
-## Storage workaround (until the KV API exists)
-
-- Counts: `localStorage` key `pz:counts:<dataset>`
+- Counts: production KV Worker (`kvBaseUrl` / `kvProject` / `kvApiKey` in `app.const.ts`). Reads are public; writes send `Authorization: Bearer <OSM token>`.
 - Edge snapshots: IndexedDB (`idb-keyval`)
 - Hand files around with **JSON exportieren** / **JSON importieren** (newer `updated_at` wins)
-
-When the Cloudflare KV API is live, set `kvBaseUrl`, `kvProject`, and `kvApiKey` in `app.const.ts`. The `KvCountStore` adapter is already wired.
 
 ## Contracts
 
