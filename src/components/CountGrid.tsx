@@ -109,7 +109,7 @@ export function CountGrid({
     categoryKey: (typeof categories)[number]['key'],
   ) {
     if (event.key !== 'Tab') return
-    const order = countFieldTabOrder(columns, disabledSides)
+    const order = countFieldTabOrder(columns)
     const index = order.findIndex((field) => field.side === side && field.key === categoryKey)
     if (index < 0) return
     const next = event.shiftKey ? order[index - 1] : order[index + 1]
@@ -123,7 +123,7 @@ export function CountGrid({
       // Drop the previous edge's highlight first: on a fully counted edge nothing
       // takes focus, so the map would keep thickening a side nobody is editing.
       setFocusedCountSide(null)
-      const side = firstUncountedSide(columns, disabledSides, saved)
+      const side = firstUncountedSide(columns, { left: false, right: false }, saved)
       if (!side) return
       focusField(side, categories[0].key)
     },
@@ -187,7 +187,6 @@ export function CountGrid({
               {category.label}
             </th>
             {columns.map((side, columnIndex) => {
-              const disabled = disabledSides[side]
               return (
                 <td key={side} className="px-1 py-0.5 align-middle">
                   <div className="relative">
@@ -204,7 +203,6 @@ export function CountGrid({
                       step={1}
                       inputMode="numeric"
                       autoComplete="off"
-                      disabled={disabled}
                       defaultValue={saved?.[side][category.key] ?? ''}
                       aria-labelledby={`${formId}-${category.key} ${formId}-${side}`}
                       aria-keyshortcuts={category.hotkeys[columnIndex]!.toLowerCase()}
@@ -218,10 +216,7 @@ export function CountGrid({
                     />
                     <kbd
                       aria-hidden="true"
-                      className={cn(
-                        'pointer-events-none absolute inset-y-0 right-1.5 flex items-center font-sans text-[10px] text-zinc-500',
-                        disabled && 'opacity-50',
-                      )}
+                      className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center font-sans text-[10px] text-zinc-500"
                     >
                       {category.hotkeys[columnIndex]}
                     </kbd>
