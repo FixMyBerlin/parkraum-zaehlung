@@ -1,23 +1,41 @@
+# Source: tech-stack skill — examples/dependabot.yml.template (tilda-geo).
+# Schedule is the private-OSS one: first Friday of the month.
+# No docker ecosystem (no Dockerfile) and no `ignore` block (no nitro/TanStack Start here).
 version: 2
 updates:
   - package-ecosystem: bun
     directories:
       - /
     schedule:
-      interval: weekly
-      day: monday
-      time: '07:00'
+      interval: cron
+      cronjob: '0 7 * * FRI#1'
       timezone: Europe/Berlin
     cooldown:
       default-days: 5
     open-pull-requests-limit: 1
+    exclude-paths:
+      - .cursor/**
     commit-message:
       prefix: chore
       include: scope
     groups:
+      security-dev-tools:
+        applies-to: security-updates
+        patterns:
+          - 'oxlint*'
+          - 'oxfmt*'
+          - 'vitest*'
+          - '@playwright/*'
+          - 'knip*'
+          - '@types/*'
+          - 'typescript'
+          - '@typescript/typescript-*'
+          - 'eslint*'
+
       app-dev-minor-patch:
         applies-to: version-updates
         patterns:
+          - '@heroicons/*'
           - '@playwright/*'
           - '@vitejs/*'
           - 'eslint-*'
@@ -32,6 +50,7 @@ updates:
         update-types:
           - minor
           - patch
+
       app-framework-minor-patch:
         applies-to: version-updates
         patterns:
@@ -48,12 +67,25 @@ updates:
           - minor
           - patch
 
+      app-prod-misc-patch:
+        applies-to: version-updates
+        update-types:
+          - patch
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@tanstack/*'
+          - '@tailwindcss/*'
+          - 'react'
+          - 'react-dom'
+          - 'maplibre-gl'
+          - 'zod'
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-      time: '07:00'
+      interval: cron
+      cronjob: '0 7 * * FRI#1'
       timezone: Europe/Berlin
     cooldown:
       default-days: 5
