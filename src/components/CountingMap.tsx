@@ -50,7 +50,7 @@ export function CountingMap() {
   const hoveredEdgeId = useHoveredEdgeId()
   const hoveredSide = useHoveredSide()
   const focusedCountSide = useFocusedCountSide()
-  const { setHover } = useMapUiActions()
+  const { setHover, setMapBearing } = useMapUiActions()
   const sideLineArgs = {
     hoveredEdgeId,
     hoveredSide,
@@ -99,6 +99,10 @@ export function CountingMap() {
       interactiveLayerIds={[...interactiveEdgeLayerIds]}
       onLoad={(event: MapLibreEvent) => {
         exposeMainMapForDebugging(event.target)
+        setMapBearing(event.target.getBearing())
+      }}
+      onRotateEnd={(event: ViewStateChangeEvent) => {
+        setMapBearing(event.viewState.bearing)
       }}
       onMoveEnd={(event: ViewStateChangeEvent) => {
         const { latitude, longitude, zoom } = event.viewState

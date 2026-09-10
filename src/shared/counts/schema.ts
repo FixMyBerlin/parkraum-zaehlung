@@ -32,7 +32,7 @@ export function emptyCountRecord(updatedAt = new Date().toISOString()): CountRec
   }
 }
 
-function isSideCounted(side: SideCount) {
+export function isSideCounted(side: SideCount) {
   return side.pkw != null || side.motorrad != null || side.lkw_bus != null
 }
 

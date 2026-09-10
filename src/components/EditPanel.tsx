@@ -1,51 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useEffect, useId } from 'react'
+import { CountGrid } from '@/components/CountGrid'
 import { Button } from '@/components/ui/button'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
-import { useFocusedCountSide, useMapUiActions } from '@/features/map/map-ui-store'
+import { useMapUiActions } from '@/features/map/map-ui-store'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
-import { cn } from '@/shared/cn'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { emptySideCount, type CountRecord, type SideCount } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
-import { EDGE_SIDE_LINE_COLOR } from '@/shared/map/edge-side-style'
-
-const sideLegendClassName = {
-  left: 'border-sky-400 bg-sky-400/25 text-sky-100',
-  right: 'border-rose-400 bg-rose-400/25 text-rose-100',
-} as const
-
-const sideLegendActiveClassName = {
-  left: 'bg-sky-400/45 ring-1 ring-sky-400/60',
-  right: 'bg-rose-400/45 ring-1 ring-rose-400/60',
-} as const
-
-const sideInputFocusClassName = {
-  left: 'focus-visible:ring-sky-400',
-  right: 'focus-visible:ring-rose-400',
-} as const
-
-const categories = [
-  { key: 'pkw', label: 'Pkw' },
-  { key: 'motorrad', label: 'Motorrad' },
-  { key: 'lkw_bus', label: 'Lkw/Bus' },
-] as const
-
-function countInputClassName(side: 'left' | 'right') {
-  return cn(
-    'min-h-9 w-full rounded-lg border border-zinc-950/10 bg-transparent px-2 py-1.5 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:border-white/10 dark:bg-white/5 dark:text-white dark:scheme-dark',
-    'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset',
-    sideInputFocusClassName[side],
-    'disabled:cursor-not-allowed disabled:opacity-50 dark:disabled:border-white/15 dark:disabled:bg-white/2.5',
-    '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]',
-  )
-}
 
 export function EditPanel() {
   const queryClient = useQueryClient()
@@ -113,9 +81,11 @@ export function EditPanel() {
   }
 
   const properties = edge.properties
-  const leftDisabled = properties.parking_left === 'no'
-  const rightDisabled = properties.parking_right === 'no'
-  const firstEnabledSide = !leftDisabled ? 'left' : !rightDisabled ? 'right' : null
+  const disabledSides = {
+    left: properties.parking_left === 'no',
+    right: properties.parking_right === 'no',
+  }
+  const { left: leftDisabled, right: rightDisabled } = disabledSides
 
   function saveFromForm(form: HTMLFormElement) {
     const data = new FormData(form)
@@ -164,44 +134,13 @@ export function EditPanel() {
         onSubmit={handleSubmit}
         data-testid="count-form"
       >
-        <Text>
-          Kapazität L/R: {properties.capacity_left ?? '–'} / {properties.capacity_right ?? '–'}
-        </Text>
-        <table className="w-full table-fixed border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="w-20 p-0" />
-              {categories.map((category) => (
-                <th
-                  key={category.key}
-                  id={`${formId}-${category.key}`}
-                  scope="col"
-                  className="px-1 pb-1 text-center text-sm font-medium text-zinc-950 dark:text-white"
-                >
-                  {category.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <CountSideRow
-              formId={formId}
-              side="left"
-              label="Links"
-              disabled={leftDisabled}
-              values={saved?.left ?? emptySideCount()}
-              autoFocusCategory={!saved && firstEnabledSide === 'left' ? 'pkw' : null}
-            />
-            <CountSideRow
-              formId={formId}
-              side="right"
-              label="Rechts"
-              disabled={rightDisabled}
-              values={saved?.right ?? emptySideCount()}
-              autoFocusCategory={!saved && firstEnabledSide === 'right' ? 'pkw' : null}
-            />
-          </tbody>
-        </table>
+        <CountGrid
+          formId={formId}
+          coordinates={edge.geometry.coordinates}
+          disabledSides={disabledSides}
+          capacity={{ left: properties.capacity_left, right: properties.capacity_right }}
+          saved={saved}
+        />
         <Field>
           <Label>Notiz</Label>
           <Input name="note" defaultValue={saved?.note ?? ''} autoComplete="off" />
@@ -269,88 +208,4 @@ function readSide(form: FormData, side: 'left' | 'right'): SideCount {
     motorrad: read('motorrad'),
     lkw_bus: read('lkw_bus'),
   }
-}
-
-function CountSideRow({
-  formId,
-  side,
-  label,
-  disabled,
-  values,
-  autoFocusCategory,
-}: {
-  formId: string
-  side: 'left' | 'right'
-  label: string
-  disabled: boolean
-  values: SideCount
-  autoFocusCategory: (typeof categories)[number]['key'] | null
-}) {
-  const rowHeaderId = `${formId}-${side}`
-  const focusedCountSide = useFocusedCountSide()
-  const { setFocusedCountSide } = useMapUiActions()
-  const isActive = focusedCountSide === side
-
-  useEffect(
-    function highlightAutofocusedCountSide() {
-      if (autoFocusCategory == null) return
-      setFocusedCountSide(side)
-    },
-    [autoFocusCategory, setFocusedCountSide, side],
-  )
-
-  return (
-    <tr
-      className={disabled ? 'opacity-50' : undefined}
-      onFocusCapture={() => {
-        if (!disabled) setFocusedCountSide(side)
-      }}
-    >
-      <th
-        id={rowHeaderId}
-        scope="row"
-        className={cn(
-          'rounded-md border-l-4 px-2 py-1.5 text-left align-middle text-sm font-medium',
-          sideLegendClassName[side],
-          !disabled && isActive && sideLegendActiveClassName[side],
-        )}
-        style={{ borderLeftColor: EDGE_SIDE_LINE_COLOR[side] }}
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: EDGE_SIDE_LINE_COLOR[side] }}
-          />
-          {label}
-        </span>
-        {disabled ? (
-          <span className="mt-0.5 block text-xs font-normal text-zinc-400">kein Parken</span>
-        ) : null}
-      </th>
-      {categories.map((category) => {
-        const inputId = `${formId}-${side}-${category.key}`
-        return (
-          <td key={category.key} className="px-1 py-0.5 align-middle">
-            <input
-              id={inputId}
-              name={`${side}_${category.key}`}
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              autoComplete="off"
-              disabled={disabled}
-              autoFocus={autoFocusCategory === category.key}
-              defaultValue={values[category.key] ?? ''}
-              aria-labelledby={`${rowHeaderId} ${formId}-${category.key}`}
-              className={countInputClassName(side)}
-              data-testid={`${side}-${category.key}`}
-              onFocus={(event) => event.currentTarget.select()}
-            />
-          </td>
-        )
-      })}
-    </tr>
-  )
 }
