@@ -29,7 +29,7 @@ export function DatasetPanel() {
   const [pendingName, setPendingName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const importMutation = useMutation({
+  const { mutate: importEdges } = useMutation({
     mutationFn: async ({ text, name }: { text: string; name?: string }) => {
       const parsed = parseEdgesText(text, name ? slugifyDatasetName(name) : undefined)
       if (parsed.needsDatasetName) {
@@ -58,7 +58,7 @@ export function DatasetPanel() {
 
   async function importFromFile(file: File) {
     const text = await file.text()
-    importMutation.mutate({ text, name: pendingName || undefined })
+    importEdges({ text, name: pendingName || undefined })
   }
 
   useEffect(
@@ -72,7 +72,7 @@ export function DatasetPanel() {
         })
         .then((text) => {
           if (cancelled) return
-          importMutation.mutate({ text })
+          importEdges({ text })
         })
         .catch((caught: unknown) => {
           if (!cancelled) {
@@ -83,7 +83,9 @@ export function DatasetPanel() {
         cancelled = true
       }
     },
-    [edgesUrl, dataset, importMutation],
+    // `importEdges` is the stable `mutate` callback, so the fetch only re-runs
+    // when the URL or the selected dataset changes.
+    [edgesUrl, dataset, importEdges],
   )
 
   return (
