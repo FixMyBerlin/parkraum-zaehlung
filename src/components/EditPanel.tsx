@@ -12,7 +12,7 @@ import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
-import { emptySideCount, type CountRecord, type SideCount } from '@/shared/counts/schema'
+import { type CountRecord, type SideCount } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
 export function EditPanel() {
@@ -78,14 +78,13 @@ export function EditPanel() {
     left: properties.parking_left === 'no',
     right: properties.parking_right === 'no',
   }
-  const { left: leftDisabled, right: rightDisabled } = disabledSides
 
   function saveFromForm(form: HTMLFormElement) {
     const data = new FormData(form)
     const noteValue = data.get('note')
     const record: CountRecord = {
-      left: leftDisabled ? emptySideCount() : readSide(data, 'left'),
-      right: rightDisabled ? emptySideCount() : readSide(data, 'right'),
+      left: readSide(data, 'left'),
+      right: readSide(data, 'right'),
       note: typeof noteValue === 'string' && noteValue ? noteValue : undefined,
       updated_at: new Date().toISOString(),
       updated_by: auth.displayName,
@@ -107,10 +106,10 @@ export function EditPanel() {
       <Text>
         {properties.highway ?? 'highway?'} ·{' '}
         {properties.length ? `${properties.length} m` : 'ohne Länge'}
-      </Text>
-      <ul className="mt-1 text-sm/6 text-sky-300">
-        {properties.way_ids.map((wayId) => (
-          <li key={wayId}>
+        {properties.way_ids.length > 0 ? ' · ' : null}
+        {properties.way_ids.map((wayId, index) => (
+          <span key={wayId}>
+            {index > 0 ? ', ' : null}
             <TextLink
               href={`https://www.openstreetmap.org/way/${wayId}`}
               target="_blank"
@@ -118,9 +117,9 @@ export function EditPanel() {
             >
               way/{wayId}
             </TextLink>
-          </li>
+          </span>
         ))}
-      </ul>
+      </Text>
       <form
         key={`${edgeId}-${saved?.updated_at ?? 'new'}`}
         className="mt-3 space-y-3"
