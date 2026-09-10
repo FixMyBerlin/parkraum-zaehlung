@@ -1,0 +1,48 @@
+# Dependabot bumps package.json for the bun ecosystem but does not regenerate bun.lock.
+# This workflow reinstalls on Dependabot PRs and commits the updated lockfile so CI
+# (`bun install --frozen-lockfile`) passes.
+name: Sync Dependabot bun.lock
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - package.json
+
+permissions:
+  contents: read
+
+jobs:
+  sync-bun-lockfile:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Shorter than bunfig.toml (5 days) so lockfile sync can keep up with Dependabot.
+      # Dependabot's own cooldown already gates which bumps get proposed.
+      - name: Update bun.lock
+        run: bun install --minimum-release-age 172800
+
+      - name: Commit bun.lock changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add bun.lock
+
+          if git diff --staged --quiet; then
+            echo "bun.lock already in sync"
+            exit 0
+          fi
+
+          git commit -m "chore(deps): sync bun.lock with package.json"
+          git push
