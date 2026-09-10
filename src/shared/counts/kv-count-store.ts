@@ -72,5 +72,11 @@ export function createKvCountStore(client: KvClient<CountRecord>): CountStore {
       }
       return next
     },
+    async listDatasetSummaries() {
+      const { tags } = await client.tags()
+      return tags
+        .map(({ tag, count }) => ({ dataset: tag, entryCount: count }))
+        .sort((a, b) => a.dataset.localeCompare(b.dataset))
+    },
   }
 }

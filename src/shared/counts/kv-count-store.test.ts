@@ -132,3 +132,26 @@ test('put maps unauthenticated KvError to a login prompt', async () => {
   expect(err).not.toHaveProperty('code')
   expect((err as Error).message).toBe(osmLoginRequiredMessage)
 })
+
+test('listDatasetSummaries maps GET /tags and sorts by dataset name', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    jsonResponse(200, {
+      tags: [
+        { tag: 'zeta', count: 2 },
+        { tag: 'alpha', count: 10 },
+      ],
+    }),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+
+  const store = createKvCountStore(testClient())
+  const summaries = await store.listDatasetSummaries()
+
+  expect(readUrl(fetchMock.mock.calls[0])).toBe(
+    'https://kv.example/v1/projects/parkraum-zaehlung/tags',
+  )
+  expect(summaries).toEqual([
+    { dataset: 'alpha', entryCount: 10 },
+    { dataset: 'zeta', entryCount: 2 },
+  ])
+})

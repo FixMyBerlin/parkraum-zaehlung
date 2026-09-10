@@ -1,5 +1,7 @@
 import type { CountRecord } from './schema'
 
+export type DatasetSummary = { dataset: string; entryCount: number }
+
 export type CountStore = {
   list: (dataset: string) => Promise<Record<string, CountRecord>>
   get: (dataset: string, edgeId: string) => Promise<CountRecord | undefined>
@@ -9,6 +11,7 @@ export type CountStore = {
     dataset: string,
     incoming: Record<string, CountRecord>,
   ) => Promise<Record<string, CountRecord>>
+  listDatasetSummaries: () => Promise<DatasetSummary[]>
 }
 
 export function newerWins(
