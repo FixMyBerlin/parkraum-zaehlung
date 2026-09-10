@@ -44,6 +44,7 @@ export function DatasetPanel() {
       await queryClient.invalidateQueries({ queryKey: ['dataset', stored.dataset] })
       await navigate({
         search: (previous) => ({ ...previous, dataset: stored.dataset, edge: undefined }),
+        replace: true,
       })
     },
     onError: (caught: unknown) => {
@@ -135,6 +136,7 @@ export function DatasetPanel() {
           onChange={(checked) =>
             void navigate({
               search: (previous) => ({ ...previous, parkings: checked }),
+              replace: true,
             })
           }
         />
@@ -153,6 +155,7 @@ export function DatasetPanel() {
               const next = event.target.value || undefined
               void navigate({
                 search: (previous) => ({ ...previous, dataset: next, edge: undefined }),
+                replace: true,
               })
             }}
           >

@@ -42,6 +42,7 @@ export function EdgeList() {
             onChange={(checked) =>
               void navigate({
                 search: (previous) => ({ ...previous, uncounted: checked }),
+                replace: true,
               })
             }
           />
@@ -62,6 +63,7 @@ export function EdgeList() {
                 onClick={() =>
                   void navigate({
                     search: (previous) => ({ ...previous, edge: feature.properties.id }),
+                    replace: true,
                   })
                 }
               >

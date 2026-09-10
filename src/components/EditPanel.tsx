@@ -185,7 +185,10 @@ export function EditPanel() {
             type="button"
             plain
             onClick={() =>
-              void navigate({ search: (previous) => ({ ...previous, edge: undefined }) })
+              void navigate({
+                search: (previous) => ({ ...previous, edge: undefined }),
+                replace: true,
+              })
             }
           >
             Schließen

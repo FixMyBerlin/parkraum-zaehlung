@@ -126,6 +126,7 @@ export function CountingMap() {
         if (!id) return
         void navigate({
           search: (previous) => ({ ...previous, edge: id }),
+          replace: true,
         })
       }}
     >
