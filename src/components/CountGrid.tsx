@@ -108,6 +108,9 @@ export function CountGrid({
 
   useEffect(
     function focusFirstUncountedColumn() {
+      // Drop the previous edge's highlight first: on a fully counted edge nothing
+      // takes focus, so the map would keep thickening a side nobody is editing.
+      setFocusedCountSide(null)
       const side = firstUncountedSide(columns, disabledSides, saved)
       if (!side) return
       focusField(side, categories[0].key)
