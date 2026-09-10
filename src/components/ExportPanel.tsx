@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
-import { countsQueryKey, countStore } from '@/features/counts/counts-query'
+import {
+  countStore,
+  countsQueryKey,
+  datasetSummariesQueryKey,
+} from '@/features/counts/counts-query'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import {
+  buildAllCountsFile,
   buildCountsFile,
   downloadJson,
   exportFilename,
@@ -45,20 +50,36 @@ export function ExportPanel() {
     onSuccess: async () => {
       if (!dataset) return
       await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
+      await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
     },
   })
 
-  if (!dataset || !edgesQuery.data) return null
+  const exportAll = useMutation({
+    mutationFn: async () => {
+      const summaries = await countStore.listDatasetSummaries()
+      const datasets: Record<string, Awaited<ReturnType<typeof countStore.list>>> = {}
+      for (const summary of summaries) {
+        datasets[summary.dataset] = await countStore.list(summary.dataset)
+      }
+      return buildAllCountsFile(datasets)
+    },
+    onSuccess: (file) => {
+      downloadJson(exportFilename('counts', 'all'), file)
+    },
+  })
+
+  if (!dataset) return null
 
   const records = countsQuery.data ?? {}
+  const hasEdges = Boolean(edgesQuery.data)
 
   return (
     <section>
       <Subheading className="mb-2">Zählungen</Subheading>
       <Text className="mb-2">
         {auth.authenticated
-          ? `Gespeichert als ${auth.displayName ?? 'OSM-Nutzer'} auf der KV-API`
-          : 'Zählungen liegen auf der gemeinsamen Cloudflare-KV-API. Lesen ist öffentlich; Speichern erfordert OSM-Anmeldung.'}
+          ? `Gespeichert als ${auth.displayName ?? 'OSM-Nutzer'} in der Zähl-Datenbank`
+          : 'Zählungen liegen in der gemeinsamen Zähl-Datenbank. Lesen ist öffentlich; Speichern erfordert OSM-Anmeldung.'}
       </Text>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -70,17 +91,28 @@ export function ExportPanel() {
         >
           JSON exportieren
         </Button>
+        {hasEdges ? (
+          <Button
+            type="button"
+            data-testid="export-geojson"
+            onClick={() => {
+              downloadJson(
+                exportGeojsonFilename(dataset),
+                mergeCountsIntoEdges(edgesQuery.data!.collection, records),
+              )
+            }}
+          >
+            GeoJSON exportieren
+          </Button>
+        ) : null}
         <Button
           type="button"
-          data-testid="export-geojson"
-          onClick={() => {
-            downloadJson(
-              exportGeojsonFilename(dataset),
-              mergeCountsIntoEdges(edgesQuery.data!.collection, records),
-            )
-          }}
+          outline
+          data-testid="export-all-json"
+          disabled={exportAll.isPending}
+          onClick={() => exportAll.mutate()}
         >
-          GeoJSON exportieren
+          Alle Zählungen exportieren
         </Button>
         <label className={filePickerLabelClassName}>
           JSON importieren
@@ -103,6 +135,11 @@ export function ExportPanel() {
           {importCounts.error instanceof Error
             ? importCounts.error.message
             : 'Import fehlgeschlagen'}
+        </Callout>
+      ) : null}
+      {exportAll.isError ? (
+        <Callout className="mt-2" tone="error">
+          {exportAll.error instanceof Error ? exportAll.error.message : 'Export fehlgeschlagen'}
         </Callout>
       ) : null}
     </section>

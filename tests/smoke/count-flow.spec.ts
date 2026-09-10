@@ -26,6 +26,7 @@ function parseKvUrl(raw: string) {
   const withoutQuery = raw.split('?')[0] ?? raw
   if (withoutQuery.endsWith('/v1/health')) return { type: 'health' as const }
   if (withoutQuery.endsWith('/me')) return { type: 'me' as const }
+  if (withoutQuery.endsWith('/tags')) return { type: 'tags' as const }
   const marker = '/entries'
   const idx = withoutQuery.lastIndexOf(marker)
   if (idx === -1) return { type: 'unknown' as const }
@@ -64,6 +65,17 @@ test.describe('counting flow', () => {
       }
       if (parsed.type === 'me' && method === 'DELETE') {
         await route.fulfill({ status: 204, headers: corsHeaders, body: '' })
+        return
+      }
+      if (parsed.type === 'tags' && method === 'GET') {
+        const counts = new Map<string, number>()
+        for (const entry of saved.values()) {
+          for (const tag of entry.tags) {
+            counts.set(tag, (counts.get(tag) ?? 0) + 1)
+          }
+        }
+        const tags = [...counts.entries()].map(([tag, count]) => ({ tag, count }))
+        await route.fulfill({ headers: corsHeaders, json: { tags } })
         return
       }
       if (parsed.type === 'collection' && method === 'GET') {
@@ -123,8 +135,10 @@ test.describe('counting flow', () => {
     await page
       .getByTestId('edges-file-input')
       .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await expect(page.getByTestId('dataset-name-input')).toHaveValue('loerrach-sample')
+    await page.getByTestId('import-dataset').click()
     await expect(page.getByText('Datensatz loerrach-sample')).toBeVisible()
-    await expect(page.getByText('Gespeichert als e2e auf der KV-API')).toBeVisible()
+    await expect(page.getByText('Gespeichert als e2e in der Zähl-Datenbank')).toBeVisible()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
     await page.getByTestId('edge-list-ce-basler-nord').click()

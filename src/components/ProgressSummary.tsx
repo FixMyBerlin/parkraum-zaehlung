@@ -7,6 +7,7 @@ type ProgressSummaryProps = {
   dataset?: string
   edges?: CountingEdgesGeoJSON
   records?: Record<string, CountRecord>
+  remoteCount?: number
 }
 
 function edgeCountProgress(edges: CountingEdgesGeoJSON, records: Record<string, CountRecord>) {
@@ -34,13 +35,18 @@ export function DatasetHeadline({ dataset, edges, records = {} }: ProgressSummar
   )
 }
 
-export function ProgressSummary({ edges }: ProgressSummaryProps) {
-  if (!edges) {
+export function ProgressSummary({ edges, dataset, remoteCount = 0 }: ProgressSummaryProps) {
+  if (edges) return null
+  if (dataset && remoteCount > 0) {
     return (
-      <Callout className="mt-3" title="Noch keine Kanten geladen">
-        Datei unten importieren, um zu zählen.
+      <Callout className="mt-3" title="Nur in der Zähl-Datenbank">
+        {remoteCount} Zählungen. Kanten-Datei unten importieren, um zu zählen.
       </Callout>
     )
   }
-  return null
+  return (
+    <Callout className="mt-3" title="Noch keine Kanten geladen">
+      Datei unten importieren, um zu zählen.
+    </Callout>
+  )
 }

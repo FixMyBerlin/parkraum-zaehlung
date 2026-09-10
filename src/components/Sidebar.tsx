@@ -29,6 +29,8 @@ export function AppSidebar() {
     queryFn: () => countStore.list(dataset!),
     enabled: Boolean(dataset),
   })
+  const hasLocalEdges = Boolean(edgesQuery.data)
+  const remoteCount = dataset ? Object.keys(countsQuery.data ?? {}).length : 0
 
   return (
     <SidebarNav className="h-full bg-zinc-900">
@@ -44,10 +46,14 @@ export function AppSidebar() {
             />
           </div>
         </div>
-        <ProgressSummary edges={edgesQuery.data?.collection} />
+        <ProgressSummary
+          dataset={dataset}
+          edges={edgesQuery.data?.collection}
+          remoteCount={remoteCount}
+        />
       </SidebarHeader>
       <SidebarBody>
-        {dataset ? (
+        {dataset && hasLocalEdges ? (
           <>
             <SidebarSection>
               <EditPanel />
@@ -66,9 +72,19 @@ export function AppSidebar() {
             </SidebarSection>
           </>
         ) : (
-          <SidebarSection>
-            <DatasetPanel />
-          </SidebarSection>
+          <>
+            {dataset ? (
+              <>
+                <SidebarSection>
+                  <ExportPanel />
+                </SidebarSection>
+                <SidebarDivider />
+              </>
+            ) : null}
+            <SidebarSection>
+              <DatasetPanel />
+            </SidebarSection>
+          </>
         )}
       </SidebarBody>
       <SidebarFooter>

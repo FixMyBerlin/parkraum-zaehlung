@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseEdgesJson } from './parse-edges'
-import { edgesCollectionSchema, slugifyDatasetName } from './schema'
+import { edgesCollectionSchema, isValidDatasetName, slugifyDatasetName } from './schema'
 
 const sample = {
   type: 'FeatureCollection' as const,
@@ -38,6 +38,12 @@ describe('edges schema', () => {
     expect(edgesCollectionSchema.safeParse(sample).success).toBe(true)
   })
 
+  it('lets a confirmed name override metadata.dataset', () => {
+    const parsed = parseEdgesJson(sample, 'kampagne-2026-09')
+    expect(parsed.dataset).toBe('kampagne-2026-09')
+    expect(parsed.collection.metadata?.dataset).toBe('kampagne-2026-09')
+  })
+
   it('asks for a name when metadata.dataset is missing', () => {
     const { metadata: _, ...withoutMeta } = sample
     const parsed = parseEdgesJson(withoutMeta)
@@ -58,5 +64,30 @@ describe('edges schema', () => {
   it('slugifies dataset names', () => {
     expect(slugifyDatasetName('  Lörrach Sample!! ')).toBe('loerrach-sample')
     expect(slugifyDatasetName('loerrach-sample')).toBe('loerrach-sample')
+  })
+
+  it('accepts slug dataset names of 3–60 characters', () => {
+    expect(isValidDatasetName('loerrach-2026-09')).toBe(true)
+    expect(isValidDatasetName('ab')).toBe(false)
+    expect(isValidDatasetName('Loerrach')).toBe(false)
+    expect(isValidDatasetName('download')).toBe(true)
+  })
+
+  it('drops unlocated GeoJSON features before validating edges', () => {
+    const withOrphan = {
+      ...sample,
+      features: [
+        ...sample.features,
+        {
+          type: 'Feature' as const,
+          id: 'orphan',
+          geometry: null,
+          properties: { id: 'orphan', count_status: 'orphan' },
+        },
+      ],
+    }
+    const parsed = parseEdgesJson(withOrphan)
+    expect(parsed.collection.features).toHaveLength(1)
+    expect(parsed.collection.features[0]?.properties.id).toBe('ce-aaa111bbb222')
   })
 })
