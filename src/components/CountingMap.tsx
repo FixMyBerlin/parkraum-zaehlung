@@ -131,42 +131,41 @@ export function CountingMap() {
       }}
     >
       <AttributionControl compact />
-      {parkings && (
-        <>
-          <Source
-            id={PARKINGS_SOURCE_ID}
-            type="vector"
-            tiles={[`${tildaTilesUrl}/${tildaParkingsTileset}/{z}/{x}/{y}`]}
-          />
-          <Layer
-            id={PARKINGS_LAYER_ID}
-            type="line"
-            source={PARKINGS_SOURCE_ID}
-            source-layer="parkings"
-            paint={{
-              'line-color': '#f59e0b',
-              'line-width': 2,
-              'line-opacity': 0.7,
-            }}
-          />
-        </>
-      )}
+      {/* Kept mounted and toggled via `visibility` so the layer order stays deterministic;
+          MapLibre only requests tiles while the layer is visible. */}
+      <Source
+        id={PARKINGS_SOURCE_ID}
+        type="vector"
+        tiles={[`${tildaTilesUrl}/${tildaParkingsTileset}/{z}/{x}/{y}`]}
+      />
+      <Layer
+        id={PARKINGS_LAYER_ID}
+        type="line"
+        source={PARKINGS_SOURCE_ID}
+        source-layer="parkings"
+        layout={{ visibility: parkings ? 'visible' : 'none' }}
+        paint={{
+          'line-color': '#f59e0b',
+          'line-width': 2,
+          'line-opacity': 0.7,
+        }}
+      />
       {geojson && (
         <>
           <Source id={EDGES_SOURCE_ID} type="geojson" data={geojson} promoteId="id" />
-          {edge && (
-            <Layer
-              id={EDGES_SELECTED_LAYER_ID}
-              type="line"
-              source={EDGES_SOURCE_ID}
-              filter={['==', ['get', 'id'], edge]}
-              paint={{
-                'line-width': 8,
-                'line-color': '#f8fafc',
-                'line-opacity': 0.35,
-              }}
-            />
-          )}
+          {/* Highlight stays mounted below the edge lines; selection drives `filter`, because a
+              layer that mounts later would be added on top of its siblings. */}
+          <Layer
+            id={EDGES_SELECTED_LAYER_ID}
+            type="line"
+            source={EDGES_SOURCE_ID}
+            filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
+            paint={{
+              'line-width': 8,
+              'line-color': '#f8fafc',
+              'line-opacity': 0.35,
+            }}
+          />
           <Layer
             id={EDGES_LAYER_ID}
             type="line"
