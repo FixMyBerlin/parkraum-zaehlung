@@ -1,6 +1,6 @@
 import { useHotkeys } from '@tanstack/react-hotkeys'
 import type { Position } from 'geojson'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { useFocusedCountSide, useMapBearing, useMapUiActions } from '@/features/map/map-ui-store'
 import { cn } from '@/shared/cn'
 import { firstUncountedSide } from '@/shared/counts/focus-side'
@@ -61,21 +61,21 @@ function isTextEntryElement(element: Element | null) {
   return element.type !== 'number'
 }
 
+function subscribeToFocusChanges(onFocusChange: () => void) {
+  document.addEventListener('focusin', onFocusChange)
+  document.addEventListener('focusout', onFocusChange)
+  return function unsubscribeFromFocusChanges() {
+    document.removeEventListener('focusin', onFocusChange)
+    document.removeEventListener('focusout', onFocusChange)
+  }
+}
+
 function useTextEntryFocused() {
-  const [textEntryFocused, setTextEntryFocused] = useState(false)
-
-  useEffect(function trackTextEntryFocus() {
-    const update = () => setTextEntryFocused(isTextEntryElement(document.activeElement))
-    update()
-    document.addEventListener('focusin', update)
-    document.addEventListener('focusout', update)
-    return () => {
-      document.removeEventListener('focusin', update)
-      document.removeEventListener('focusout', update)
-    }
-  }, [])
-
-  return textEntryFocused
+  return useSyncExternalStore(
+    subscribeToFocusChanges,
+    () => isTextEntryElement(document.activeElement),
+    () => false,
+  )
 }
 
 export function CountGrid({

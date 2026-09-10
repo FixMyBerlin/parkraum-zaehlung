@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { type FormEvent, useEffect, useId } from 'react'
+import { type FormEvent, useId } from 'react'
 import { CountGrid } from '@/components/CountGrid'
 import { Button } from '@/components/ui/button'
 import { Field, Label } from '@/components/ui/fieldset'
@@ -8,7 +8,6 @@ import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
-import { useMapUiActions } from '@/features/map/map-ui-store'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
@@ -21,15 +20,6 @@ export function EditPanel() {
   const { dataset, edge: edgeId } = Route.useSearch()
   const auth = useOsmAuth()
   const formId = useId()
-  const { setFocusedCountSide } = useMapUiActions()
-
-  useEffect(
-    function clearFocusedCountSideWhenNoEdge() {
-      if (edgeId) return
-      setFocusedCountSide(null)
-    },
-    [edgeId, setFocusedCountSide],
-  )
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
