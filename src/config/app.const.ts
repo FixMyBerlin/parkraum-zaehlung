@@ -25,10 +25,6 @@ export const sampleEdgesGithubUrl =
 
 export const loerrachMapFallback = { zoom: 15.4, lat: 47.6148, lng: 7.6616 } as const
 
-export function isKvConfigured() {
-  return kvBaseUrl.length > 0 && kvApiKey.length > 0
-}
-
 export function isOsmLoginConfigured() {
   return osmClientId.length > 0
 }
