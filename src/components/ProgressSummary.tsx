@@ -4,11 +4,37 @@ import type { CountRecord } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
 type ProgressSummaryProps = {
+  dataset?: string
   edges?: CountingEdgesGeoJSON
-  records: Record<string, CountRecord>
+  records?: Record<string, CountRecord>
 }
 
-export function ProgressSummary({ edges, records }: ProgressSummaryProps) {
+function edgeCountProgress(edges: CountingEdgesGeoJSON, records: Record<string, CountRecord>) {
+  const total = edges.features.length
+  const counted = edges.features.filter(
+    (feature) => countedSides(records[feature.properties.id]) === 2,
+  ).length
+  return { counted, total }
+}
+
+export function DatasetHeadline({ dataset, edges, records = {} }: ProgressSummaryProps) {
+  if (!edges) {
+    return (
+      <p className="truncate text-xs/5 text-zinc-400">
+        {dataset ? `Datensatz ${dataset}` : 'Kanten-GeoJSON importieren'}
+      </p>
+    )
+  }
+  const { counted, total } = edgeCountProgress(edges, records)
+  return (
+    <p className="truncate text-xs/5 text-zinc-400" data-testid="progress-summary">
+      {dataset ? `Datensatz ${dataset} · ` : null}
+      {counted}/{total} Kanten
+    </p>
+  )
+}
+
+export function ProgressSummary({ edges }: ProgressSummaryProps) {
   if (!edges) {
     return (
       <Callout className="mt-3" title="Noch keine Kanten geladen">
@@ -16,18 +42,5 @@ export function ProgressSummary({ edges, records }: ProgressSummaryProps) {
       </Callout>
     )
   }
-  const total = edges.features.length
-  const counted = edges.features.filter(
-    (feature) => countedSides(records[feature.properties.id]) === 2,
-  ).length
-  const metres = edges.features.reduce((sum, feature) => sum + (feature.properties.length ?? 0), 0)
-  const countedMetres = edges.features
-    .filter((feature) => countedSides(records[feature.properties.id]) === 2)
-    .reduce((sum, feature) => sum + (feature.properties.length ?? 0), 0)
-
-  return (
-    <p className="text-xs/5 text-zinc-400" data-testid="progress-summary">
-      {counted}/{total} Kanten · {Math.round(countedMetres)}/{Math.round(metres)} m
-    </p>
-  )
+  return null
 }

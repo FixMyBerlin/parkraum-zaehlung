@@ -4,7 +4,7 @@ import { DatasetPanel } from '@/components/DatasetPanel'
 import { EdgeList } from '@/components/EdgeList'
 import { EditPanel } from '@/components/EditPanel'
 import { ExportPanel } from '@/components/ExportPanel'
-import { ProgressSummary } from '@/components/ProgressSummary'
+import { DatasetHeadline, ProgressSummary } from '@/components/ProgressSummary'
 import {
   Sidebar as SidebarNav,
   SidebarBody,
@@ -37,12 +37,14 @@ export function AppSidebar() {
           <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="size-8" />
           <div className="min-w-0">
             <h1 className="text-sm/5 font-semibold tracking-wide text-white">Parkraum-Zählung</h1>
-            <p className="text-xs/5 text-zinc-400">
-              {dataset ? `Datensatz ${dataset}` : 'Kanten-GeoJSON importieren'}
-            </p>
+            <DatasetHeadline
+              dataset={dataset}
+              edges={edgesQuery.data?.collection}
+              records={countsQuery.data ?? {}}
+            />
           </div>
         </div>
-        <ProgressSummary edges={edgesQuery.data?.collection} records={countsQuery.data ?? {}} />
+        <ProgressSummary edges={edgesQuery.data?.collection} />
       </SidebarHeader>
       <SidebarBody>
         {dataset ? (
