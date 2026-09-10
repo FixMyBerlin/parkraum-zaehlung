@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useId } from 'react'
 import { CountGrid } from '@/components/CountGrid'
 import { Button } from '@/components/ui/button'
+import { Callout } from '@/components/ui/callout'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
@@ -65,7 +66,9 @@ export function EditPanel() {
     return (
       <section>
         <Subheading>Zählung</Subheading>
-        <Text className="mt-1">Kante auf der Karte oder in der Liste wählen.</Text>
+        <Callout className="mt-2" title="Keine Kante gewählt">
+          Kante auf der Karte oder in der Liste wählen.
+        </Callout>
       </section>
     )
   }
@@ -135,42 +138,48 @@ export function EditPanel() {
           <Label>Notiz</Label>
           <Input name="note" defaultValue={saved?.note ?? ''} autoComplete="off" />
         </Field>
-        {!auth.authenticated ? <Text>{osmLoginRequiredMessage}</Text> : null}
+        {!auth.authenticated ? <Callout>{osmLoginRequiredMessage}</Callout> : null}
         {saveMutation.isError ? (
-          <p className="text-sm/6 text-red-500">
+          <Callout tone="error">
             {saveMutation.error instanceof Error
               ? saveMutation.error.message
               : 'Speichern fehlgeschlagen'}
-          </p>
+          </Callout>
         ) : null}
         {clearMutation.isError ? (
-          <p className="text-sm/6 text-red-500">
+          <Callout tone="error">
             {clearMutation.error instanceof Error
               ? clearMutation.error.message
               : 'Löschen fehlgeschlagen'}
-          </p>
+          </Callout>
         ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            color="sky"
-            data-testid="save-count"
-            disabled={!auth.authenticated}
-            onClick={(event) => {
-              const form = event.currentTarget.closest('form')
-              if (form) saveFromForm(form)
-            }}
-          >
-            Speichern
-          </Button>
-          <Button
-            type="button"
-            outline
-            disabled={!auth.authenticated}
-            onClick={() => clearMutation.mutate()}
-          >
-            Löschen
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              color="sky"
+              data-testid="save-count"
+              disabled={!auth.authenticated}
+              onClick={(event) => {
+                const form = event.currentTarget.closest('form')
+                if (form) saveFromForm(form)
+              }}
+            >
+              Speichern
+            </Button>
+            <Button
+              type="button"
+              outline
+              data-testid="delete-count"
+              disabled={!auth.authenticated}
+              onClick={() => {
+                if (!window.confirm('Zählung für diese Kante löschen?')) return
+                clearMutation.mutate()
+              }}
+            >
+              Löschen
+            </Button>
+          </div>
           <Button
             type="button"
             plain

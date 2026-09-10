@@ -1,3 +1,4 @@
+import { Callout } from '@/components/ui/callout'
 import { countedSides } from '@/shared/counts/schema'
 import type { CountRecord } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
@@ -9,7 +10,11 @@ type ProgressSummaryProps = {
 
 export function ProgressSummary({ edges, records }: ProgressSummaryProps) {
   if (!edges) {
-    return <p className="text-xs/5 text-zinc-400">Noch keine Kanten geladen</p>
+    return (
+      <Callout className="mt-3" title="Noch keine Kanten geladen">
+        Datei unten importieren, um zu zählen.
+      </Callout>
+    )
   }
   const total = edges.features.length
   const counted = edges.features.filter(

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { Callout } from '@/components/ui/callout'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 
 export function AuthButton() {
@@ -6,9 +7,9 @@ export function AuthButton() {
 
   if (!auth.configured) {
     return (
-      <p className="text-xs/5 text-zinc-400">
-        OSM-Login nach Client-ID in <code>app.const.ts</code>
-      </p>
+      <Callout title="OSM-Login nicht konfiguriert">
+        Client-ID in <code>app.const.ts</code> eintragen.
+      </Callout>
     )
   }
 

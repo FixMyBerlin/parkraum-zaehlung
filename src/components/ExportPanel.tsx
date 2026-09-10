@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import { Callout } from '@/components/ui/callout'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
@@ -98,11 +99,11 @@ export function ExportPanel() {
         </label>
       </div>
       {importCounts.isError ? (
-        <Text className="mt-2">
+        <Callout className="mt-2" tone="error">
           {importCounts.error instanceof Error
             ? importCounts.error.message
             : 'Import fehlgeschlagen'}
-        </Text>
+        </Callout>
       ) : null}
     </section>
   )

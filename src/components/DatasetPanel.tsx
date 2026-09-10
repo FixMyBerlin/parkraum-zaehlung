@@ -4,8 +4,9 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { MotionCollapse } from '@/components/shared/motion/MotionCollapse'
 import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
+import { Callout } from '@/components/ui/callout'
 import { Checkbox, CheckboxField } from '@/components/ui/checkbox'
-import { ErrorMessage, Field, Fieldset, Label } from '@/components/ui/fieldset'
+import { Field, Fieldset, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -151,9 +152,9 @@ export function DatasetPanel() {
           </label>
         </div>
         {error ? (
-          <Field>
-            <ErrorMessage>{error}</ErrorMessage>
-          </Field>
+          <Callout className="mt-4" tone="error">
+            {error}
+          </Callout>
         ) : null}
       </Fieldset>
       <CheckboxField>

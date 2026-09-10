@@ -1,8 +1,9 @@
 import { useHotkeys } from '@tanstack/react-hotkeys'
 import type { Position } from 'geojson'
-import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { useFocusedCountSide, useMapBearing, useMapUiActions } from '@/features/map/map-ui-store'
+import { useEffect, useRef, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { useMapBearing, useMapUiActions } from '@/features/map/map-ui-store'
 import { cn } from '@/shared/cn'
+import { countFieldTabOrder } from '@/shared/counts/count-field-tab-order'
 import { firstUncountedSide } from '@/shared/counts/focus-side'
 import type { CountRecord } from '@/shared/counts/schema'
 import { screenOrderedSides } from '@/shared/edges/way-side-order'
@@ -23,27 +24,24 @@ const categories = [
 
 const sideLabel = { left: 'Links', right: 'Rechts' } as const
 
-const sideHeaderClassName = {
-  left: 'border-sky-400 bg-sky-400/25 text-sky-100',
-  right: 'border-rose-400 bg-rose-400/25 text-rose-100',
-} as const
-
-const sideHeaderActiveClassName = {
-  left: 'bg-sky-400/45 ring-1 ring-sky-400/60',
-  right: 'bg-rose-400/45 ring-1 ring-rose-400/60',
+const sideInputClassName = {
+  left: 'border-sky-400/70 bg-sky-400/10 ring-1 ring-inset ring-sky-400/40 dark:border-sky-400/50 dark:bg-sky-400/10',
+  right:
+    'border-rose-400/70 bg-rose-400/10 ring-1 ring-inset ring-rose-400/40 dark:border-rose-400/50 dark:bg-rose-400/10',
 } as const
 
 const sideInputFocusClassName = {
-  left: 'focus-visible:ring-sky-400',
-  right: 'focus-visible:ring-rose-400',
+  left: 'focus-visible:bg-sky-400/20 focus-visible:ring-2 focus-visible:ring-sky-400',
+  right: 'focus-visible:bg-rose-400/20 focus-visible:ring-2 focus-visible:ring-rose-400',
 } as const
 
 function countInputClassName(side: Side) {
   return cn(
-    'min-h-9 w-full rounded-lg border border-zinc-950/10 bg-transparent py-1.5 pr-6 pl-2 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:border-white/10 dark:bg-white/5 dark:text-white dark:scheme-dark',
-    'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset',
+    'min-h-9 w-full rounded-lg border py-1.5 pr-6 pl-2 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:text-white dark:scheme-dark',
+    'focus:outline-hidden',
+    sideInputClassName[side],
     sideInputFocusClassName[side],
-    'disabled:cursor-not-allowed disabled:opacity-50 dark:disabled:border-white/15 dark:disabled:bg-white/2.5',
+    'disabled:cursor-not-allowed disabled:opacity-50 dark:disabled:bg-white/2.5',
     '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]',
   )
 }
@@ -92,7 +90,6 @@ export function CountGrid({
   saved: CountRecord | undefined
 }) {
   const mapBearing = useMapBearing()
-  const focusedCountSide = useFocusedCountSide()
   const { setFocusedCountSide } = useMapUiActions()
   const textEntryFocused = useTextEntryFocused()
   const fieldRefs = useRef(new Map<string, HTMLInputElement>())
@@ -104,6 +101,21 @@ export function CountGrid({
     if (!field || field.disabled) return
     field.focus()
     field.select()
+  }
+
+  function handleCountInputTab(
+    event: KeyboardEvent<HTMLInputElement>,
+    side: Side,
+    categoryKey: (typeof categories)[number]['key'],
+  ) {
+    if (event.key !== 'Tab') return
+    const order = countFieldTabOrder(columns, disabledSides)
+    const index = order.findIndex((field) => field.side === side && field.key === categoryKey)
+    if (index < 0) return
+    const next = event.shiftKey ? order[index - 1] : order[index + 1]
+    if (!next) return
+    event.preventDefault()
+    focusField(next.side, next.key)
   }
 
   useEffect(
@@ -146,14 +158,7 @@ export function CountGrid({
               key={side}
               id={`${formId}-${side}`}
               scope="col"
-              className={cn(
-                'rounded-md border-t-4 px-2 py-1 text-left align-bottom text-sm font-medium',
-                sideHeaderClassName[side],
-                !disabledSides[side] &&
-                  focusedCountSide === side &&
-                  sideHeaderActiveClassName[side],
-              )}
-              style={{ borderTopColor: EDGE_SIDE_LINE_COLOR[side] }}
+              className="px-2 py-1 text-left align-bottom text-sm font-medium text-zinc-950 dark:text-white"
               data-testid={`count-column-${side}`}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -205,6 +210,7 @@ export function CountGrid({
                       aria-keyshortcuts={category.hotkeys[columnIndex]!.toLowerCase()}
                       className={countInputClassName(side)}
                       data-testid={`${side}-${category.key}`}
+                      onKeyDown={(event) => handleCountInputTab(event, side, category.key)}
                       onFocus={(event) => {
                         setFocusedCountSide(side)
                         event.currentTarget.select()
