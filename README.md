@@ -18,6 +18,8 @@ bun run check
 bun run e2e
 ```
 
+`@playwright/test` is pinned **exactly** and kept in sync with [tilda-geo](https://github.com/FixMyBerlin/tilda-geo) so both repos want the same browser build. Playwright ships no browsers in `node_modules`; they live in one shared cache (`~/Library/Caches/ms-playwright` on macOS) that every repo on the same version reuses. Matching the pin therefore means `bun run e2e` works with no download. Bump this pin together with the other repos, then run `bunx playwright install chromium` once — and `bunx playwright uninstall --all` occasionally, since old builds are never pruned automatically.
+
 ## OSM login
 
 Public client id lives in [`src/config/app.const.ts`](src/config/app.const.ts) (`osmClientId`). No `.env` files, no client secret.
