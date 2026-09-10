@@ -59,4 +59,9 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     sourcemap: true,
   },
+  // MapLibre's worker must not land in Vite's optimize-deps cache (missing
+  // `maplibre-gl-worker.mjs`). Same pattern as tilda-geo: `setWorkerUrl` + `?worker&url`.
+  optimizeDeps: {
+    exclude: ['maplibre-gl/dist/maplibre-gl-worker.mjs'],
+  },
 }))

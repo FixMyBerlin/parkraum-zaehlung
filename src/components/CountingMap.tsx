@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { MapLayerMouseEvent, MapLibreEvent } from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import '@/shared/map/maplibre-worker'
 import {
   AttributionControl,
   Layer,
@@ -8,7 +10,6 @@ import {
   Source,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { decorateEdges } from '@/features/edges/decorate-edges'
