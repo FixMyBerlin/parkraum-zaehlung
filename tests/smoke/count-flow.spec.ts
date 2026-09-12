@@ -137,8 +137,6 @@ test.describe('counting flow', () => {
       .setInputFiles('public/fixtures/loerrach-sample.geojson')
     await expect(page.getByTestId('dataset-name-input')).toHaveValue('loerrach-sample')
     await page.getByTestId('import-dataset').click()
-    await expect(page.getByText('Datensatz loerrach-sample')).toBeVisible()
-    await expect(page.getByText('Gespeichert als e2e in der Zähl-Datenbank')).toBeVisible()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
     await page.getByTestId('edge-list-ce-basler-nord').click()
@@ -150,6 +148,9 @@ test.describe('counting flow', () => {
     await page.getByTestId('save-count').click()
 
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+
+    await page.getByTestId('step-export').click()
+    await expect(page.getByText('Gespeichert als e2e in der Zähl-Datenbank')).toBeVisible()
 
     const downloadPromise = page.waitForEvent('download')
     await page.getByTestId('export-json').click()

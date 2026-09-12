@@ -126,7 +126,7 @@ export function CountingMap() {
         const id = featureIdFromEvent(event)
         if (!id) return
         void navigate({
-          search: (previous) => ({ ...previous, edge: id }),
+          search: (previous) => ({ ...previous, edge: id, step: 'count' }),
           replace: true,
         })
       }}

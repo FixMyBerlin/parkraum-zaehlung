@@ -99,7 +99,12 @@ export function DatasetPanel() {
       await queryClient.invalidateQueries({ queryKey: ['dataset', stored.dataset] })
       await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
       await navigate({
-        search: (previous) => ({ ...previous, dataset: stored.dataset, edge: undefined }),
+        search: (previous) => ({
+          ...previous,
+          dataset: stored.dataset,
+          edge: undefined,
+          step: 'count',
+        }),
         replace: true,
       })
     },
@@ -299,6 +304,7 @@ export function DatasetPanel() {
                           ...previous,
                           dataset: row.dataset,
                           edge: undefined,
+                          step: 'count',
                         }),
                         replace: true,
                       })

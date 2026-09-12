@@ -27,4 +27,8 @@ describe('routerSearch', () => {
     expect(search.parkings).toBe(true)
     expect(search.uncounted).toBe(false)
   })
+
+  it('round-trips step=export', () => {
+    expect(roundTrip({ step: 'export' }).step).toBe('export')
+  })
 })

@@ -41,6 +41,7 @@ export const indexSearchSchema = z.object({
   edges: optionalTrimmedSearchString,
   uncounted: optionalFlag.catch(false),
   parkings: optionalFlag.catch(false),
+  step: z.enum(['login', 'dataset', 'count', 'export']).optional(),
 })
 
 export type IndexSearch = z.infer<typeof indexSearchSchema>
