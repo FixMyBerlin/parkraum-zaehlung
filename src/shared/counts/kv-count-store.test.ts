@@ -8,21 +8,23 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(status: number, body: unknown) {
   const headers = new Headers()
   headers.set('Content-Type', 'application/json')
   return new Response(JSON.stringify(body), { status, headers })
 }
 
-function readInit(call: unknown): RequestInit {
-  const init = (call as [string, RequestInit])[1]
-  expect(init).toBeDefined()
+type FetchCall = Parameters<typeof fetch>
+
+function readInit(call: FetchCall | undefined) {
+  const [, init] = call ?? []
+  if (init == null) throw new Error('expected a RequestInit')
   return init
 }
 
-function readUrl(call: unknown): string {
-  const url = (call as [string, RequestInit])[0]
-  expect(typeof url).toBe('string')
+function readUrl(call: FetchCall | undefined) {
+  const [url] = call ?? []
+  if (typeof url !== 'string') throw new Error('expected a string URL')
   return url
 }
 
@@ -57,7 +59,7 @@ function testClient(getOsmToken: () => string | null = () => 'osm-token') {
 test('list paginates with tag query until next_cursor is null', async () => {
   const first = emptyCountRecord('2026-09-01T00:00:00.000Z')
   const second = emptyCountRecord('2026-09-02T00:00:00.000Z')
-  const fetchMock = vi.fn()
+  const fetchMock = vi.fn<typeof fetch>()
   vi.stubGlobal('fetch', fetchMock)
   fetchMock
     .mockResolvedValueOnce(
@@ -96,7 +98,7 @@ test('list paginates with tag query until next_cursor is null', async () => {
 
 test('put sends { data, tags: [dataset] } with encoded id dataset%2Fedge', async () => {
   const fetchMock = vi
-    .fn()
+    .fn<typeof fetch>()
     .mockResolvedValue(jsonResponse(200, kvEntry('dataset/edge', sampleRecord, ['dataset'])))
   vi.stubGlobal('fetch', fetchMock)
 
@@ -115,7 +117,7 @@ test('put sends { data, tags: [dataset] } with encoded id dataset%2Fedge', async
 })
 
 test('put maps unauthenticated KvError to a login prompt', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
     jsonResponse(401, {
       error: {
         code: 'unauthenticated',
@@ -134,7 +136,7 @@ test('put maps unauthenticated KvError to a login prompt', async () => {
 })
 
 test('listDatasetSummaries maps GET /tags and sorts by dataset name', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
     jsonResponse(200, {
       tags: [
         { tag: 'zeta', count: 2 },
@@ -159,7 +161,7 @@ test('listDatasetSummaries maps GET /tags and sorts by dataset name', async () =
 test('listAll paginates with no tag query until next_cursor is null', async () => {
   const first = emptyCountRecord('2026-09-01T00:00:00.000Z')
   const second = emptyCountRecord('2026-09-02T00:00:00.000Z')
-  const fetchMock = vi.fn()
+  const fetchMock = vi.fn<typeof fetch>()
   vi.stubGlobal('fetch', fetchMock)
   fetchMock
     .mockResolvedValueOnce(
@@ -199,7 +201,7 @@ test('listAll paginates with no tag query until next_cursor is null', async () =
 
 test('listAll skips invalid payloads and ids without a slash', async () => {
   const valid = emptyCountRecord('2026-09-01T00:00:00.000Z')
-  const fetchMock = vi.fn().mockResolvedValue(
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
     jsonResponse(200, {
       items: [
         kvEntry('alpha/edge-a', valid, ['alpha']),
@@ -219,7 +221,7 @@ test('listAll skips invalid payloads and ids without a slash', async () => {
 
 test('listAll splits on the first slash only', async () => {
   const record = emptyCountRecord('2026-09-01T00:00:00.000Z')
-  const fetchMock = vi.fn().mockResolvedValue(
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
     jsonResponse(200, {
       items: [kvEntry('alpha/edge/with/slash', record, ['alpha'])],
       next_cursor: null,

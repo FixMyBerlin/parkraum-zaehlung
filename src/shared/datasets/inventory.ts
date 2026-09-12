@@ -16,7 +16,7 @@ export function buildDatasetInventory(
   local: StoredDataset[],
   summaries: DatasetSummary[],
   countsByDataset: Record<string, Record<string, CountRecord> | undefined>,
-): DatasetInventoryRow[] {
+) {
   const localByName = new Map(local.map((item) => [item.dataset, item]))
   const remoteByName = new Map(summaries.map((item) => [item.dataset, item.entryCount]))
   const names = [...new Set([...localByName.keys(), ...remoteByName.keys()])].sort((a, b) =>

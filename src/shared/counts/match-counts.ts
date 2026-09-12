@@ -43,11 +43,7 @@ export type MatchCountsResult = {
 
 type EdgeWithMid = EdgeMatchInput & { mid: { lng: number; lat: number } }
 
-function candidatesFor(
-  record: CountRecord,
-  edges: EdgeWithMid[],
-  radiusM = MATCH_RADIUS_M,
-): MatchCandidate[] {
+function candidatesFor(record: CountRecord, edges: EdgeWithMid[], radiusM = MATCH_RADIUS_M) {
   return edges
     .map((edge) => ({
       id: edge.id,
@@ -59,7 +55,7 @@ function candidatesFor(
     .sort((left, right) => left.distanceM - right.distanceM || left.id.localeCompare(right.id))
 }
 
-function withMatch(record: CountRecord, matchId: string, matchStatus: MatchStatus): CountRecord {
+function withMatch(record: CountRecord, matchId: string, matchStatus: MatchStatus) {
   return {
     ...record,
     match_id: matchId,
@@ -74,7 +70,7 @@ function row(
   matchId: string,
   candidates: MatchCandidate[],
   nextRecord?: CountRecord,
-): CountMatchRow {
+) {
   const recordToWrite = nextRecord ?? record
   const needsWrite =
     Boolean(nextRecord) &&
@@ -90,7 +86,7 @@ function row(
   }
 }
 
-export function edgeMatchInputs(collection: CountingEdgesGeoJSON): EdgeMatchInput[] {
+export function edgeMatchInputs(collection: CountingEdgesGeoJSON) {
   return collection.features.map((feature) => ({
     id: feature.properties.id,
     coordinates: feature.geometry.coordinates,
@@ -99,10 +95,7 @@ export function edgeMatchInputs(collection: CountingEdgesGeoJSON): EdgeMatchInpu
   }))
 }
 
-export function matchCountsToEdges(
-  records: Record<string, CountRecord>,
-  edges: EdgeMatchInput[],
-): MatchCountsResult {
+export function matchCountsToEdges(records: Record<string, CountRecord>, edges: EdgeMatchInput[]) {
   const withMids: EdgeWithMid[] = edges.map((edge) => ({
     ...edge,
     mid: lineMidpoint(edge.coordinates),
@@ -195,18 +188,12 @@ export function matchCountsToEdges(
   }
 }
 
-export function recordForEdge(
-  records: Record<string, CountRecord>,
-  edgeId: string,
-): CountRecord | undefined {
+export function recordForEdge(records: Record<string, CountRecord>, edgeId: string) {
   const originalId = originalIdForEdge(records, edgeId)
   return originalId ? records[originalId] : undefined
 }
 
-export function originalIdForEdge(
-  records: Record<string, CountRecord>,
-  edgeId: string,
-): string | undefined {
+export function originalIdForEdge(records: Record<string, CountRecord>, edgeId: string) {
   const hits = Object.entries(records).filter(
     ([, record]) => record.match_status !== 'none' && record.match_id === edgeId,
   )
@@ -214,7 +201,7 @@ export function originalIdForEdge(
   return undefined
 }
 
-export function assignedMatchIds(records: Record<string, CountRecord>): string[] {
+export function assignedMatchIds(records: Record<string, CountRecord>) {
   return Object.values(records)
     .filter((record) => record.match_status !== 'none' && record.match_id !== '')
     .map((record) => record.match_id)

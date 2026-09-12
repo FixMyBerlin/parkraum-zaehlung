@@ -24,7 +24,7 @@ export type CountStore = {
 export function newerWins(
   current: Record<string, CountRecord>,
   incoming: Record<string, CountRecord>,
-): Record<string, CountRecord> {
+) {
   const next = { ...current }
   for (const [edgeId, record] of Object.entries(incoming)) {
     const existing = next[edgeId]

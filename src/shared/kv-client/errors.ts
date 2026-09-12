@@ -1,18 +1,22 @@
 import type { KvErrorCode } from './types'
 
-const KV_ERROR_CODES = new Set<KvErrorCode>([
-  'invalid_project_key',
-  'origin_not_allowed',
-  'unauthenticated',
-  'forbidden_user',
-  'not_found',
-  'validation_failed',
-  'payload_too_large',
-  'version_conflict',
-  'rate_limited',
-  'osm_unavailable',
-  'internal',
-])
+const KV_ERROR_CODES: Record<KvErrorCode, true> = {
+  invalid_project_key: true,
+  origin_not_allowed: true,
+  unauthenticated: true,
+  forbidden_user: true,
+  not_found: true,
+  validation_failed: true,
+  payload_too_large: true,
+  version_conflict: true,
+  rate_limited: true,
+  osm_unavailable: true,
+  internal: true,
+}
+
+function isKvErrorCode(code: string): code is KvErrorCode {
+  return code in KV_ERROR_CODES
+}
 
 export class KvError extends Error {
   constructor(
@@ -26,14 +30,14 @@ export class KvError extends Error {
   }
 }
 
-function asKvErrorCode(code: unknown): KvErrorCode {
-  if (typeof code === 'string' && KV_ERROR_CODES.has(code as KvErrorCode)) {
-    return code as KvErrorCode
+function asKvErrorCode(code: unknown) {
+  if (typeof code === 'string' && isKvErrorCode(code)) {
+    return code
   }
   return 'internal'
 }
 
-export async function kvErrorFromResponse(response: Response): Promise<KvError> {
+export async function kvErrorFromResponse(response: Response) {
   let code: KvErrorCode = 'internal'
   let message = response.statusText || 'Request failed'
   let details: unknown

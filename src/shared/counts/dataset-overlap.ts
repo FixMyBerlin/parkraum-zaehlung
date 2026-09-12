@@ -5,7 +5,7 @@ export type DatasetOverlap = {
   matchedPercent: number
 }
 
-export function datasetOverlap(edgeIds: string[], recordIds: string[]): DatasetOverlap {
+export function datasetOverlap(edgeIds: string[], recordIds: string[]) {
   const edges = new Set(edgeIds)
   const records = new Set(recordIds)
 

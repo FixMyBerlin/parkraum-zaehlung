@@ -12,7 +12,7 @@ export const appStepLabels: Record<AppStep, { label: string }> = {
   export: { label: 'Export' },
 }
 
-export function resolveStep(search: { step?: AppStep; dataset?: string }): AppStep {
+export function resolveStep(search: { step?: AppStep; dataset?: string }) {
   if (search.step) return search.step
   if (search.dataset) return 'count'
   return 'dataset'
@@ -70,11 +70,7 @@ type StepStatusArgs = {
   dataset?: string
 }
 
-export function stepStatus({
-  step,
-  current,
-  dataset,
-}: StepStatusArgs): 'complete' | 'current' | 'upcoming' {
+export function stepStatus({ step, current, dataset }: StepStatusArgs) {
   if (current && step === current) return 'current'
   if (step === 'dataset') return dataset ? 'complete' : 'upcoming'
   return 'upcoming'

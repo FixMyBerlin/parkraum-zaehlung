@@ -9,22 +9,22 @@ import {
 export function getOsmOAuthRedirectUrl(
   origin = globalThis.location?.origin ?? '',
   baseUrl = import.meta.env.BASE_URL,
-): string {
+) {
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   return new URL(OSM_OAUTH_LAND_FILENAME, new URL(base, origin)).href
 }
 
-export async function waitForOsmAuth(): Promise<boolean> {
+export async function waitForOsmAuth() {
   await authReady
   return isLoggedIn()
 }
 
-function rememberOsmReturnUrl(): void {
+function rememberOsmReturnUrl() {
   const { pathname, search, hash } = globalThis.location
   localStorage.setItem(OSM_AUTH_RETURN_URL_KEY, `${pathname}${search}${hash}`)
 }
 
-export function loginWithOsm(): void {
+export function loginWithOsm() {
   if (!isOsmLoginConfigured()) {
     throw new Error('OSM login is not configured (osmClientId).')
   }
@@ -37,7 +37,7 @@ export function loginWithOsm(): void {
   })
 }
 
-export function getOsmToken(): string | null {
+export function getOsmToken() {
   return getAuthToken() ?? null
 }
 

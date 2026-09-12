@@ -8,7 +8,7 @@ const sideCountSchema = z.object({
 
 export type SideCount = z.infer<typeof sideCountSchema>
 
-export const emptySideCount = (): SideCount => ({
+export const emptySideCount = () => ({
   pkw: null,
   motorrad: null,
   lkw_bus: null,
@@ -40,7 +40,7 @@ type EmptyCountExtras = Partial<
 export function emptyCountRecord(
   updatedAt = new Date().toISOString(),
   extras: EmptyCountExtras = {},
-): CountRecord {
+) {
   return {
     left: emptySideCount(),
     right: emptySideCount(),
@@ -57,9 +57,12 @@ export function isSideCounted(side: SideCount) {
   return side.pkw != null || side.motorrad != null || side.lkw_bus != null
 }
 
-export function countedSides(record: CountRecord | undefined): 0 | 1 | 2 {
+export function countedSides(record: CountRecord | undefined) {
   if (!record) return 0
-  return ((isSideCounted(record.left) ? 1 : 0) + (isSideCounted(record.right) ? 1 : 0)) as 0 | 1 | 2
+  const leftCounted = isSideCounted(record.left)
+  const rightCounted = isSideCounted(record.right)
+  if (leftCounted && rightCounted) return 2
+  return leftCounted || rightCounted ? 1 : 0
 }
 
 export const countsFileSchema = z.object({

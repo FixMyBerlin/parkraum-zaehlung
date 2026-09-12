@@ -14,7 +14,7 @@ export function decorateEdges(
   records: Record<string, CountRecord>,
   uncountedOnly: boolean,
   matchUi?: DecorateMatchUi,
-): CountingEdgesGeoJSON {
+) {
   const features = collection.features.map((feature) => {
     const sides = countedSides(recordForEdge(records, feature.properties.id))
     const countState: EdgeCountState = sides === 0 ? 'uncounted' : sides === 2 ? 'full' : 'partial'

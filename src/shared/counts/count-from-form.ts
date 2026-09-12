@@ -1,7 +1,7 @@
 import { lineMidpoint } from '@/shared/edges/line-midpoint'
-import { type CountRecord, type MatchStatus, matchStatusSchema, type SideCount } from './schema'
+import { type CountRecord, matchStatusSchema, type SideCount } from './schema'
 
-export function readSideCount(form: FormData, side: 'left' | 'right'): SideCount {
+export function readSideCount(form: FormData, side: 'left' | 'right') {
   const read = (key: keyof SideCount) => {
     const raw = form.get(`${side}_${key}`)
     if (raw == null || raw === '') return null
@@ -33,10 +33,7 @@ type CountRecordFromFormArgs = {
   coordinates?: ReadonlyArray<ReadonlyArray<number>>
 }
 
-export function countRecordFromFormData(
-  data: FormData,
-  args: CountRecordFromFormArgs = {},
-): CountRecord {
+export function countRecordFromFormData(data: FormData, args: CountRecordFromFormArgs = {}) {
   const occupancy = occupancyFromForm(data, args.updatedBy)
   const matchIdRaw = data.get('match_id')
   const matchStatusRaw = data.get('match_status')
@@ -69,6 +66,6 @@ export function countRecordFromFormData(
     mid_lat: mid.lat,
     mid_lng: mid.lng,
     match_id: matchFromForm?.match_id ?? args.edgeId,
-    match_status: (matchFromForm?.match_status ?? 'id') as MatchStatus,
+    match_status: matchFromForm?.match_status ?? 'id',
   }
 }

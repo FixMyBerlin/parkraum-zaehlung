@@ -24,7 +24,7 @@ async function requestHeaders(
   apiKey: string,
   getOsmToken: KvClientOptions['getOsmToken'],
   extra?: HeadersInit,
-): Promise<Headers> {
+) {
   const headers = new Headers(extra)
   headers.set('X-Api-Key', apiKey)
   const token = await getOsmToken()
@@ -41,13 +41,13 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-async function parseEmpty(response: Response): Promise<void> {
+async function parseEmpty(response: Response) {
   if (!response.ok) {
     throw await kvErrorFromResponse(response)
   }
 }
 
-export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<T> {
+export function createKvClient<T = unknown>(options: KvClientOptions) {
   const { apiKey, getOsmToken, project } = options
   const baseUrl = options.baseUrl
 
@@ -56,7 +56,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
   const tagsUrl = () => projectUrl(baseUrl, project, 'tags')
   const meUrl = () => projectUrl(baseUrl, project, 'me')
 
-  return {
+  const client: KvClient<T> = {
     async list(params) {
       const query = new URLSearchParams()
       for (const tag of params?.tags ?? []) {
@@ -138,4 +138,5 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
       await parseEmpty(response)
     },
   }
+  return client
 }

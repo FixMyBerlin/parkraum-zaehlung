@@ -1,7 +1,7 @@
 import type { FeatureCollection, LineString, Point } from 'geojson'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 import { originalIdForEdge, recordForEdge } from './match-counts'
-import { countedSides, type CountRecord, type CountsFile } from './schema'
+import { countedSides, type CountRecord } from './schema'
 
 export type CountStatus = 'counted' | 'uncounted' | 'unmatched' | 'unresolved'
 
@@ -12,13 +12,11 @@ export type CountsExportGeoJSON = FeatureCollection<
   metadata?: CountingEdgesGeoJSON['metadata']
 }
 
-export function buildCountsFile(dataset: string, records: Record<string, CountRecord>): CountsFile {
+export function buildCountsFile(dataset: string, records: Record<string, CountRecord>) {
   return { dataset, records }
 }
 
-export function buildAllCountsFile(datasets: Record<string, Record<string, CountRecord>>): {
-  datasets: Record<string, CountsFile>
-} {
+export function buildAllCountsFile(datasets: Record<string, Record<string, CountRecord>>) {
   return {
     datasets: Object.fromEntries(
       Object.entries(datasets).map(([name, records]) => [name, buildCountsFile(name, records)]),
@@ -46,17 +44,18 @@ function countExportFields(record: CountRecord, originalEdgeId: string) {
   }
 }
 
-function midpointPoint(record: CountRecord): Point {
-  return {
+function midpointPoint(record: CountRecord) {
+  const point: Point = {
     type: 'Point',
     coordinates: [record.mid_lng, record.mid_lat],
   }
+  return point
 }
 
 export function mergeCountsIntoEdges(
   collection: CountingEdgesGeoJSON,
   records: Record<string, CountRecord>,
-): CountsExportGeoJSON {
+) {
   const usedOriginalIds = new Set<string>()
 
   const features = collection.features.map((feature) => {

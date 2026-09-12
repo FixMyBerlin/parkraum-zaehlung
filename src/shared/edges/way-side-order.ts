@@ -48,7 +48,7 @@ function segmentLength(from: Position, to: Position) {
  * Length-weighted bearing of the longest straight runs, ignoring short segments
  * from tight curves or node jitter.
  */
-export function dominantEdgeBearing(coordinates: Position[]): number {
+export function dominantEdgeBearing(coordinates: Position[]) {
   if (coordinates.length < 2) return 0
 
   const segments: { lengthM: number; bearingDeg: number }[] = []
@@ -93,15 +93,19 @@ function outwardScreenPosition(alongBearing: number, side: Side, mapBearing: num
  * Order the OSM left/right sides so the first entry is the one the user sees on
  * the left of the map (or on top, for a way running across the screen).
  */
-export function screenOrderedSides(coordinates: Position[], mapBearing = 0): ScreenOrderedSides {
+export function screenOrderedSides(coordinates: Position[], mapBearing = 0) {
   const alongBearing = dominantEdgeBearing(coordinates)
   const leftScreen = outwardScreenPosition(alongBearing, 'left', mapBearing)
   const rightScreen = outwardScreenPosition(alongBearing, 'right', mapBearing)
   const deltaX = leftScreen.x - rightScreen.x
 
   if (Math.abs(deltaX) > SCREEN_AXIS_EPSILON) {
-    return leftScreen.x < rightScreen.x ? ['left', 'right'] : ['right', 'left']
+    const sides: ScreenOrderedSides =
+      leftScreen.x < rightScreen.x ? ['left', 'right'] : ['right', 'left']
+    return sides
   }
 
-  return leftScreen.y < rightScreen.y ? ['left', 'right'] : ['right', 'left']
+  const sides: ScreenOrderedSides =
+    leftScreen.y < rightScreen.y ? ['left', 'right'] : ['right', 'left']
+  return sides
 }

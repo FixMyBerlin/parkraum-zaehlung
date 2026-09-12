@@ -5,7 +5,7 @@ import { emptyCountRecord, type CountRecord } from './schema'
 const nothingDisabled = { left: false, right: false }
 
 function recordWith(counted: Partial<Record<'left' | 'right', number>>): CountRecord {
-  const record = emptyCountRecord()
+  const record: CountRecord = emptyCountRecord()
   if (counted.left != null) record.left.pkw = counted.left
   if (counted.right != null) record.right.pkw = counted.right
   return record

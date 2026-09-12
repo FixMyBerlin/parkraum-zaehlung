@@ -20,7 +20,7 @@ function withoutUnlocatedFeatures(raw: unknown): unknown {
   }
 }
 
-export function parseEdgesJson(raw: unknown, fallbackDataset?: string): ParsedEdges {
+export function parseEdgesJson(raw: unknown, fallbackDataset?: string) {
   const parsed = edgesCollectionSchema.parse(withoutUnlocatedFeatures(raw))
   const fromMeta = parsed.metadata?.dataset?.trim()
   const dataset = fallbackDataset ?? (fromMeta ? slugifyDatasetName(fromMeta) : undefined)
@@ -44,7 +44,7 @@ export function parseEdgesJson(raw: unknown, fallbackDataset?: string): ParsedEd
   }
 }
 
-export function parseEdgesText(text: string, fallbackDataset?: string): ParsedEdges {
+export function parseEdgesText(text: string, fallbackDataset?: string) {
   let json: unknown
   try {
     json = JSON.parse(text)

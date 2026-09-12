@@ -15,8 +15,8 @@ function rethrowMapped(error: unknown): never {
   throw error
 }
 
-export function createKvCountStore(client: KvClient<CountRecord>): CountStore {
-  return {
+export function createKvCountStore(client: KvClient<CountRecord>) {
+  const store: CountStore = {
     async list(dataset) {
       const records: Record<string, CountRecord> = {}
       let cursor: string | undefined
@@ -101,4 +101,5 @@ export function createKvCountStore(client: KvClient<CountRecord>): CountStore {
       return entries
     },
   }
+  return store
 }

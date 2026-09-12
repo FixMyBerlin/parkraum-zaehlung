@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { loerrachMapFallback } from '@/config/app.const'
 import { parseMapParam, serializeMapParam, type MapParam } from '@/shared/map/map-param'
-import type { AppStep } from '@/shared/routing/app-step'
 
 const mapParamFallback: MapParam = loerrachMapFallback
 
@@ -45,7 +44,7 @@ export const indexSearchSchema = z.object({
   step: z
     .union([z.string(), z.number()])
     .optional()
-    .transform((value): AppStep | undefined =>
+    .transform((value) =>
       value === 'dataset' || value === 'count' || value === 'export' ? value : undefined,
     ),
 })
@@ -59,7 +58,7 @@ export const dataSearchSchema = z.object({
 export type IndexSearch = z.infer<typeof indexSearchSchema>
 export type DataSearch = z.infer<typeof dataSearchSchema>
 
-export function searchMapParam(search: Pick<IndexSearch, 'map'>): MapParam {
+export function searchMapParam(search: Pick<IndexSearch, 'map'>) {
   return parseMapParam(search.map) ?? mapParamFallback
 }
 
