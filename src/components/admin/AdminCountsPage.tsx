@@ -57,7 +57,7 @@ export function AdminCountsPage() {
   return (
     <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-8 px-4 py-6 lg:flex-row lg:px-8">
       <div className="min-w-0 flex-1">
-        <Heading>Zähl-Datenbank</Heading>
+        <Heading level={2}>Zähl-Datenbank</Heading>
         <Text className="mt-2">
           Alle Zählungen in der gemeinsamen Datenbank. Keine Kanten-Datei nötig.
         </Text>
