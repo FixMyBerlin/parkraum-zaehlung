@@ -7,15 +7,15 @@
  */
 
 import * as Headless from '@headlessui/react'
-import React, { forwardRef } from 'react'
+import type React from 'react'
 
-export const Link = forwardRef(function Link(
-  props: { href: string } & React.ComponentPropsWithoutRef<'a'>,
-  ref: React.ForwardedRef<HTMLAnchorElement>,
-) {
+export function Link({
+  ref,
+  ...props
+}: { href: string; ref?: React.Ref<HTMLAnchorElement> } & React.ComponentPropsWithoutRef<'a'>) {
   return (
     <Headless.DataInteractive>
       <a {...props} ref={ref} />
     </Headless.DataInteractive>
   )
-})
+}

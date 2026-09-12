@@ -123,7 +123,7 @@ export function ExportPanel() {
             data-testid="counts-file-input"
             disabled={!auth.authenticated}
             onChange={(event) => {
-              const file = event.target.files?.[0]
+              const file = event.currentTarget.files?.[0]
               if (!file) return
               void file.text().then((text) => importCounts.mutate(text))
             }}

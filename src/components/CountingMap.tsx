@@ -332,11 +332,14 @@ export function CountingMap() {
 
 function FlyToSelectedMatch({ keyId, lng, lat }: { keyId: string; lng: number; lat: number }) {
   const maps = useMap()
-  useEffect(() => {
-    const map = maps[MAIN_MAP_ID]
-    if (!map) return
-    map.flyTo({ center: [lng, lat], zoom: 18, duration: 700 })
-  }, [maps, keyId, lng, lat])
+  useEffect(
+    function flyToSelectedMatch() {
+      const map = maps[MAIN_MAP_ID]
+      if (!map) return
+      map.flyTo({ center: [lng, lat], zoom: 18, duration: 700 })
+    },
+    [maps, keyId, lng, lat],
+  )
   return null
 }
 

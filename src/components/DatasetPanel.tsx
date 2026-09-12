@@ -266,7 +266,7 @@ export function DatasetPanel() {
           </MotionCollapse>
           <Input
             value={pendingName}
-            onChange={(event) => setPendingName(event.target.value.trim().toLowerCase())}
+            onChange={(event) => setPendingName(event.currentTarget.value.trim().toLowerCase())}
             placeholder="loerrach"
             data-testid="dataset-name-input"
             autoComplete="off"
@@ -326,7 +326,7 @@ export function DatasetPanel() {
                 className="sr-only"
                 data-testid="edges-file-input"
                 onChange={(event) => {
-                  const file = event.target.files?.[0]
+                  const file = event.currentTarget.files?.[0]
                   if (file) void importFromFile(file)
                 }}
               />
