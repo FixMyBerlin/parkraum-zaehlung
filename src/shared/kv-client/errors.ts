@@ -1,4 +1,16 @@
+import { z } from 'zod'
 import type { KvErrorCode } from './types'
+
+const kvErrorBodySchema = z.object({
+  error: z
+    .object({
+      code: z.unknown().optional(),
+      message: z.unknown().optional(),
+      details: z.unknown().optional(),
+    })
+    .nullable()
+    .optional(),
+})
 
 const KV_ERROR_CODES: Record<KvErrorCode, true> = {
   invalid_project_key: true,
@@ -43,14 +55,12 @@ export async function kvErrorFromResponse(response: Response) {
   let details: unknown
   try {
     const body: unknown = await response.json()
-    if (body !== null && typeof body === 'object' && 'error' in body) {
-      const err = (body as { error: unknown }).error
-      if (err !== null && typeof err === 'object') {
-        const envelope = err as { code?: unknown; message?: unknown; details?: unknown }
-        code = asKvErrorCode(envelope.code)
-        if (typeof envelope.message === 'string') message = envelope.message
-        details = envelope.details
-      }
+    const parsed = kvErrorBodySchema.safeParse(body)
+    const envelope = parsed.success ? parsed.data.error : undefined
+    if (envelope) {
+      code = asKvErrorCode(envelope.code)
+      if (typeof envelope.message === 'string') message = envelope.message
+      details = envelope.details
     }
   } catch {
     // Non-JSON error bodies still become a KvError with status.

@@ -1,7 +1,14 @@
 import { get, keys, set } from 'idb-keyval'
-import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
+import { z } from 'zod'
+import { edgesCollectionSchema, type CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
 const prefix = 'pz:edges:'
+
+const storedDatasetSchema = z.object({
+  dataset: z.string(),
+  importedAt: z.string(),
+  collection: edgesCollectionSchema,
+})
 
 export type StoredDataset = {
   dataset: string
@@ -11,6 +18,13 @@ export type StoredDataset = {
 
 function keyFor(dataset: string) {
   return `${prefix}${dataset}`
+}
+
+/** IndexedDB read: an invalid stored record is treated as absent, same as `undefined`. */
+function parseStoredDataset(value: unknown): StoredDataset | undefined {
+  if (value === undefined) return undefined
+  const parsed = storedDatasetSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
 }
 
 export async function saveDataset(collection: CountingEdgesGeoJSON, dataset: string) {
@@ -27,7 +41,7 @@ export async function saveDataset(collection: CountingEdgesGeoJSON, dataset: str
 }
 
 export async function loadDataset(dataset: string) {
-  return get<StoredDataset>(keyFor(dataset))
+  return parseStoredDataset(await get(keyFor(dataset)))
 }
 
 export async function listDatasets() {
@@ -35,6 +49,6 @@ export async function listDatasets() {
   const datasetKeys = allKeys.filter(
     (key): key is string => typeof key === 'string' && key.startsWith(prefix),
   )
-  const stored = await Promise.all(datasetKeys.map((key) => get<StoredDataset>(key)))
-  return stored.filter((item): item is StoredDataset => item != null)
+  const stored = await Promise.all(datasetKeys.map((key) => get(key)))
+  return stored.map(parseStoredDataset).filter((item): item is StoredDataset => item != null)
 }

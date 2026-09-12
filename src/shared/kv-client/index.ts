@@ -1,6 +1,8 @@
 /** Vendored from FixMyBerlin/key-value-db `packages/kv-client` (`@kv/client`). */
+import type { z } from 'zod'
 import { kvErrorFromResponse, KvError } from './errors'
-import type { KvClient, KvClientOptions, KvEntry, KvListResult, KvUser } from './types'
+import { kvEntrySchema, kvListResultSchema, kvMeResultSchema, kvTagsResultSchema } from './schema'
+import type { KvClient, KvClientOptions } from './types'
 
 export type { KvClient, KvClientOptions, KvEntry, KvErrorCode, KvListResult, KvUser } from './types'
 export { KvError }
@@ -34,11 +36,11 @@ async function requestHeaders(
   return headers
 }
 
-async function parseJson<T>(response: Response): Promise<T> {
+async function parseJson<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
   if (!response.ok) {
     throw await kvErrorFromResponse(response)
   }
-  return (await response.json()) as T
+  return schema.parse(await response.json())
 }
 
 async function parseEmpty(response: Response) {
@@ -80,7 +82,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions) {
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<KvListResult<T>>(response)
+      return parseJson(response, kvListResultSchema<T>())
     },
 
     async get(id) {
@@ -88,7 +90,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions) {
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<KvEntry<T>>(response)
+      return parseJson(response, kvEntrySchema<T>())
     },
 
     async put(id, data, tags = [], opts) {
@@ -103,7 +105,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions) {
         headers,
         body: JSON.stringify({ data, tags }),
       })
-      return parseJson<KvEntry<T>>(response)
+      return parseJson(response, kvEntrySchema<T>())
     },
 
     async remove(id) {
@@ -119,7 +121,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions) {
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<{ tags: Array<{ tag: string; count: number }> }>(response)
+      return parseJson(response, kvTagsResultSchema)
     },
 
     async me() {
@@ -127,7 +129,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions) {
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<{ user: KvUser; can_write: boolean }>(response)
+      return parseJson(response, kvMeResultSchema)
     },
 
     async forget() {

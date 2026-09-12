@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { edgesCollectionSchema, slugifyDatasetName, type CountingEdgesGeoJSON } from './schema'
 
 export type ParsedEdges = {
@@ -6,18 +7,29 @@ export type ParsedEdges = {
   needsDatasetName: boolean
 }
 
+/**
+ * Loose pre-filter shapes: only what's needed to drop non-LineString features
+ * before the strict `edgesCollectionSchema.parse()` below runs. `.loose()`
+ * (Zod 4's passthrough) keeps every other key untouched, and a feature or
+ * geometry that doesn't even match the loose shape is treated the same as
+ * one whose `geometry.type` isn't `'LineString'` — dropped, except a
+ * non-object feature entry which is kept so the strict parse reports it.
+ */
+const rawFeatureCollectionSchema = z.object({ features: z.array(z.unknown()) }).loose()
+const looseFeatureSchema = z.object({ geometry: z.unknown().optional() }).loose()
+const looseGeometrySchema = z.object({ type: z.unknown() }).loose()
+
+function isLineStringFeature(feature: unknown): boolean {
+  const parsedFeature = looseFeatureSchema.safeParse(feature)
+  if (!parsedFeature.success) return true
+  const parsedGeometry = looseGeometrySchema.safeParse(parsedFeature.data.geometry)
+  return parsedGeometry.success && parsedGeometry.data.type === 'LineString'
+}
+
 function withoutUnlocatedFeatures(raw: unknown): unknown {
-  if (typeof raw !== 'object' || raw == null || Array.isArray(raw)) return raw
-  const collection = raw as { features?: unknown }
-  if (!Array.isArray(collection.features)) return raw
-  return {
-    ...collection,
-    features: collection.features.filter((feature) => {
-      if (typeof feature !== 'object' || feature == null || Array.isArray(feature)) return true
-      const geometry = (feature as { geometry?: { type?: unknown } }).geometry
-      return geometry?.type === 'LineString'
-    }),
-  }
+  const parsed = rawFeatureCollectionSchema.safeParse(raw)
+  if (!parsed.success) return raw
+  return { ...parsed.data, features: parsed.data.features.filter(isLineStringFeature) }
 }
 
 export function parseEdgesJson(raw: unknown, fallbackDataset?: string) {
