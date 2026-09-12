@@ -1,19 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
+import { AdminCountForm } from '@/components/admin/AdminCountForm'
+import { AdminCountsTable } from '@/components/admin/AdminCountsTable'
 import { Callout } from '@/components/ui/callout'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Heading, Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Text } from '@/components/ui/text'
-import { AdminCountForm } from '@/features/admin/AdminCountForm'
-import { AdminCountsTable } from '@/features/admin/AdminCountsTable'
+import type { CountStoreEntry } from '@/shared/counts/count-store'
 import {
   allCountsQueryKey,
   countStore,
   datasetSummariesQueryKey,
-} from '@/features/counts/counts-query'
-import type { CountStoreEntry } from '@/shared/counts/count-store'
+} from '@/shared/counts/counts-query'
 
 function matchesQuery(entry: CountStoreEntry, q: string) {
   const haystack = [

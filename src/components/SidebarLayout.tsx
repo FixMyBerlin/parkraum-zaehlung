@@ -6,7 +6,7 @@ import {
   MIN_SIDEBAR_WIDTH,
   useSidebarWidth,
   useSidebarWidthActions,
-} from '@/features/layout/sidebar-width-store'
+} from '@/components/sidebar-width-store'
 import { cn } from '@/shared/cn'
 
 type SidebarLayoutProps = {

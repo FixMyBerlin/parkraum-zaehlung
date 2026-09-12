@@ -1,9 +1,9 @@
 import { MapProvider } from 'react-map-gl/maplibre'
 import { AppHeader } from '@/components/AppHeader'
 import { CountingMap } from '@/components/CountingMap'
+import { useAppStepNav } from '@/components/shared/use-app-step-nav'
 import { AppSidebar } from '@/components/Sidebar'
 import { SidebarLayout } from '@/components/SidebarLayout'
-import { useAppStepNav } from '@/features/layout/use-app-step-nav'
 
 export function AppShell() {
   const { steps, goToStep } = useAppStepNav()

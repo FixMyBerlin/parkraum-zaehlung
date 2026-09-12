@@ -4,9 +4,5 @@ import { indexSearchSchema } from '@/shared/routing/search-schema'
 
 export const Route = createFileRoute('/')({
   validateSearch: indexSearchSchema,
-  component: IndexPage,
+  component: AppShell,
 })
-
-function IndexPage() {
-  return <AppShell />
-}

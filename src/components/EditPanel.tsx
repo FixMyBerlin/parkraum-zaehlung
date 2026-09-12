@@ -2,21 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useId } from 'react'
 import { CountGrid } from '@/components/CountGrid'
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
+import { Route } from '@/routes/index'
+import { countRecordFromFormData } from '@/shared/counts/count-from-form'
 import {
   allCountsQueryKey,
   countsQueryKey,
   countStore,
   datasetSummariesQueryKey,
-} from '@/features/counts/counts-query'
-import { useOsmAuth } from '@/features/osm/use-osm-auth'
-import { Route } from '@/routes/index'
-import { countRecordFromFormData } from '@/shared/counts/count-from-form'
+} from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { originalIdForEdge, recordForEdge } from '@/shared/counts/match-counts'
 import { type CountRecord } from '@/shared/counts/schema'

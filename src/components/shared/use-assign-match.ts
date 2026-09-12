@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import {
   allCountsQueryKey,
   countsQueryKey,
   countStore,
   datasetSummariesQueryKey,
-} from '@/features/counts/counts-query'
-import { useOsmAuth } from '@/features/osm/use-osm-auth'
+} from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import type { CountRecord, MatchStatus } from '@/shared/counts/schema'
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { StepNavItem } from '@/components/StepNav'
-import { countsQueryKey, countStore } from '@/features/counts/counts-query'
+import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import {
   appStepLabels,

@@ -1,6 +1,6 @@
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
-import { useOsmAuth } from '@/features/osm/use-osm-auth'
 
 export function AuthButton() {
   const auth = useOsmAuth()

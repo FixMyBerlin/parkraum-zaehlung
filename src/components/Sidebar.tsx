@@ -3,6 +3,7 @@ import { EdgeList } from '@/components/EdgeList'
 import { EditPanel } from '@/components/EditPanel'
 import { ExportPanel } from '@/components/ExportPanel'
 import { ProgressSummary } from '@/components/ProgressSummary'
+import { useAppStepNav } from '@/components/shared/use-app-step-nav'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import {
@@ -11,7 +12,6 @@ import {
   SidebarDivider,
   SidebarSection,
 } from '@/components/ui/sidebar'
-import { useAppStepNav } from '@/features/layout/use-app-step-nav'
 
 export function AppSidebar() {
   const { dataset, current, edges, remoteCount, hasLocalEdges, goToStep } = useAppStepNav()

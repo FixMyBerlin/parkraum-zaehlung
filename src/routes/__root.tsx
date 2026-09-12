@@ -1,13 +1,6 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute } from '@tanstack/react-router'
+import { LayoutRoot } from '@/components/layouts/LayoutRoot'
 
 export const Route = createRootRoute({
-  component: RootLayout,
+  component: LayoutRoot,
 })
-
-function RootLayout() {
-  return (
-    <div className="h-full w-full">
-      <Outlet />
-    </div>
-  )
-}

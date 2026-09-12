@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent } from 'react'
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import {
@@ -14,15 +15,14 @@ import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { countRecordFromFormData } from '@/shared/counts/count-from-form'
+import type { CountStoreEntry } from '@/shared/counts/count-store'
 import {
   allCountsQueryKey,
   countsQueryKey,
   countStore,
   datasetSummariesQueryKey,
-} from '@/features/counts/counts-query'
-import { useOsmAuth } from '@/features/osm/use-osm-auth'
-import { countRecordFromFormData } from '@/shared/counts/count-from-form'
-import type { CountStoreEntry } from '@/shared/counts/count-store'
+} from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 
 const categories = [

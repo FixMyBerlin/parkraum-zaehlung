@@ -1,7 +1,7 @@
 import { useHotkeys } from '@tanstack/react-hotkeys'
 import type { Position } from 'geojson'
 import { useEffect, useRef, useSyncExternalStore, type KeyboardEvent } from 'react'
-import { useMapBearing, useMapUiActions } from '@/features/map/map-ui-store'
+import { useMapBearing, useMapUiActions } from '@/components/shared/map-ui-store'
 import { cn } from '@/shared/cn'
 import { countFieldTabOrder } from '@/shared/counts/count-field-tab-order'
 import { firstUncountedSide } from '@/shared/counts/focus-side'

@@ -12,21 +12,21 @@ import {
   useMap,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
-import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
-import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
-import { countsQueryKey, countStore } from '@/features/counts/counts-query'
-import { useAssignMatch } from '@/features/counts/use-assign-match'
-import { decorateEdges } from '@/features/edges/decorate-edges'
 import {
   useFocusedCountSide,
   useHoveredEdgeId,
   useHoveredSide,
   useMapUiActions,
-} from '@/features/map/map-ui-store'
+} from '@/components/shared/map-ui-store'
+import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
+import { useAssignMatch } from '@/components/shared/use-assign-match'
+import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
+import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
 import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
+import { decorateEdges } from '@/shared/edges/decorate-edges'
 import {
   EDGE_SIDE_LINE_COLOR,
   EDGE_SIDE_LINE_OFFSET,

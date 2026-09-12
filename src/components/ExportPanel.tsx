@@ -1,15 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import { Subheading } from '@/components/ui/heading'
 import { Text } from '@/components/ui/text'
-import {
-  countStore,
-  countsQueryKey,
-  datasetSummariesQueryKey,
-} from '@/features/counts/counts-query'
-import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
+import { countStore, countsQueryKey, datasetSummariesQueryKey } from '@/shared/counts/counts-query'
 import {
   buildAllCountsFile,
   buildCountsFile,
