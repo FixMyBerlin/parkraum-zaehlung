@@ -23,6 +23,8 @@ export const tildaParkingsTileset = 'atlas_generalized_parkings,atlas_generalize
 export const sampleEdgesGithubUrl =
   'https://github.com/FixMyBerlin/parkraum-zaehlung/raw/main/public/fixtures/loerrach-sample.geojson'
 
+export const sampleEdgesRemapUrl = `${import.meta.env.BASE_URL}fixtures/loerrach-sample-remap.geojson`
+
 export const loerrachMapFallback = { zoom: 15.4, lat: 47.6148, lng: 7.6616 } as const
 
 export function isOsmLoginConfigured() {

@@ -14,7 +14,8 @@ function withoutUnlocatedFeatures(raw: unknown): unknown {
     ...collection,
     features: collection.features.filter((feature) => {
       if (typeof feature !== 'object' || feature == null || Array.isArray(feature)) return true
-      return (feature as { geometry?: unknown }).geometry != null
+      const geometry = (feature as { geometry?: { type?: unknown } }).geometry
+      return geometry?.type === 'LineString'
     }),
   }
 }

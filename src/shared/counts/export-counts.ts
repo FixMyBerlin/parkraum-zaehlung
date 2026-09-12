@@ -1,11 +1,12 @@
-import type { FeatureCollection, LineString } from 'geojson'
+import type { FeatureCollection, LineString, Point } from 'geojson'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
+import { originalIdForEdge, recordForEdge } from './match-counts'
 import { countedSides, type CountRecord, type CountsFile } from './schema'
 
-export type CountStatus = 'counted' | 'uncounted' | 'orphan'
+export type CountStatus = 'counted' | 'uncounted' | 'unmatched' | 'unresolved'
 
 export type CountsExportGeoJSON = FeatureCollection<
-  LineString | null,
+  LineString | Point,
   { id: string; count_status: CountStatus } & Record<string, unknown>
 > & {
   metadata?: CountingEdgesGeoJSON['metadata']
@@ -25,7 +26,7 @@ export function buildAllCountsFile(datasets: Record<string, Record<string, Count
   }
 }
 
-function countExportFields(record: CountRecord) {
+function countExportFields(record: CountRecord, originalEdgeId: string) {
   return {
     left_pkw: record.left.pkw,
     left_motorrad: record.left.motorrad,
@@ -35,8 +36,20 @@ function countExportFields(record: CountRecord) {
     right_lkw_bus: record.right.lkw_bus,
     counted_sides: countedSides(record),
     note: record.note,
-    counted_at: record.updated_at,
+    counted_at: record.counted_at,
     counted_by: record.updated_by,
+    original_edge_id: originalEdgeId,
+    match_id: record.match_id,
+    match_status: record.match_status,
+    mid_lat: record.mid_lat,
+    mid_lng: record.mid_lng,
+  }
+}
+
+function midpointPoint(record: CountRecord): Point {
+  return {
+    type: 'Point',
+    coordinates: [record.mid_lng, record.mid_lat],
   }
 }
 
@@ -44,11 +57,12 @@ export function mergeCountsIntoEdges(
   collection: CountingEdgesGeoJSON,
   records: Record<string, CountRecord>,
 ): CountsExportGeoJSON {
-  const edgeIds = new Set(collection.features.map((feature) => feature.properties.id))
+  const usedOriginalIds = new Set<string>()
 
   const features = collection.features.map((feature) => {
-    const record = records[feature.properties.id]
-    if (!record) {
+    const originalId = originalIdForEdge(records, feature.properties.id)
+    const record = recordForEdge(records, feature.properties.id)
+    if (!record || !originalId) {
       return {
         ...feature,
         properties: {
@@ -57,33 +71,37 @@ export function mergeCountsIntoEdges(
         },
       }
     }
+    usedOriginalIds.add(originalId)
     return {
       ...feature,
       properties: {
         ...feature.properties,
-        ...countExportFields(record),
+        ...countExportFields(record, originalId),
         count_status: 'counted' as const,
       },
     }
   })
 
-  const orphans = Object.entries(records)
-    .filter(([edgeId]) => !edgeIds.has(edgeId))
+  const leftover = Object.entries(records)
+    .filter(([originalId]) => !usedOriginalIds.has(originalId))
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([edgeId, record]) => ({
-      type: 'Feature' as const,
-      id: edgeId,
-      geometry: null,
-      properties: {
-        id: edgeId,
-        count_status: 'orphan' as const,
-        ...countExportFields(record),
-      },
-    }))
+    .map(([originalId, record]) => {
+      const unmatched = record.match_status === 'none'
+      return {
+        type: 'Feature' as const,
+        id: originalId,
+        geometry: midpointPoint(record),
+        properties: {
+          id: originalId,
+          count_status: unmatched ? ('unmatched' as const) : ('unresolved' as const),
+          ...countExportFields(record, originalId),
+        },
+      }
+    })
 
   return {
     ...collection,
-    features: [...features, ...orphans],
+    features: [...features, ...leftover],
   }
 }
 

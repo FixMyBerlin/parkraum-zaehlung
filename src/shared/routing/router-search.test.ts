@@ -22,6 +22,10 @@ describe('routerSearch', () => {
     expect(roundTrip({ dataset: '2026' }).dataset).toBe('2026')
   })
 
+  it('round-trips match as a string', () => {
+    expect(roundTrip({ match: 'ce-old' }).match).toBe('ce-old')
+  })
+
   it('round-trips the flags', () => {
     const search = roundTrip({ parkings: true, uncounted: false })
     expect(search.parkings).toBe(true)

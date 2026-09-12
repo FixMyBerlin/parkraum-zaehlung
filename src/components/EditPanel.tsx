@@ -18,6 +18,7 @@ import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
 import { countRecordFromFormData } from '@/shared/counts/count-from-form'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
+import { originalIdForEdge, recordForEdge } from '@/shared/counts/match-counts'
 import { type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
@@ -42,13 +43,15 @@ export function EditPanel() {
   const edge = edgesQuery.data?.collection.features.find(
     (feature) => feature.properties.id === edgeId,
   )
-  const saved = edgeId ? countsQuery.data?.[edgeId] : undefined
+  const records = countsQuery.data ?? {}
+  const saved = edgeId ? recordForEdge(records, edgeId) : undefined
+  const kvEdgeId = edgeId ? (originalIdForEdge(records, edgeId) ?? edgeId) : undefined
 
   const saveMutation = useMutation({
     mutationFn: async (record: CountRecord) => {
-      if (!dataset || !edgeId) throw new Error('missing')
+      if (!dataset || !kvEdgeId) throw new Error('missing')
       if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
-      return countStore.put(dataset, edgeId, record)
+      return countStore.put(dataset, kvEdgeId, record)
     },
     onSuccess: async () => {
       if (!dataset) return
@@ -59,9 +62,9 @@ export function EditPanel() {
   })
   const clearMutation = useMutation({
     mutationFn: async () => {
-      if (!dataset || !edgeId) return
+      if (!dataset || !kvEdgeId) return
       if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
-      await countStore.remove(dataset, edgeId)
+      await countStore.remove(dataset, kvEdgeId)
     },
     onSuccess: async () => {
       if (!dataset) return
@@ -83,14 +86,22 @@ export function EditPanel() {
     )
   }
 
-  const properties = edge.properties
+  const selectedEdge = edge
+  const properties = selectedEdge.properties
   const disabledSides = {
     left: properties.parking_left === 'no',
     right: properties.parking_right === 'no',
   }
 
   function saveFromForm(form: HTMLFormElement) {
-    saveMutation.mutate(countRecordFromFormData(new FormData(form), auth.displayName))
+    saveMutation.mutate(
+      countRecordFromFormData(new FormData(form), {
+        updatedBy: auth.displayName,
+        edgeId,
+        coordinates: selectedEdge.geometry.coordinates,
+        existing: saved,
+      }),
+    )
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -129,7 +140,7 @@ export function EditPanel() {
       >
         <CountGrid
           formId={formId}
-          coordinates={edge.geometry.coordinates}
+          coordinates={selectedEdge.geometry.coordinates}
           disabledSides={disabledSides}
           capacity={{ left: properties.capacity_left, right: properties.capacity_right }}
           saved={saved}

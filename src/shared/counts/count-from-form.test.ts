@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { countRecordFromFormData, readSideCount } from './count-from-form'
+import { emptyCountRecord } from './schema'
 
 function formData(entries: Record<string, string>) {
   const data = new FormData()
@@ -7,8 +8,13 @@ function formData(entries: Record<string, string>) {
   return data
 }
 
+const coordinates = [
+  [7.66, 47.61],
+  [7.661, 47.612],
+] as const
+
 describe('countRecordFromFormData', () => {
-  it('reads sides, note, and author', () => {
+  it('reads sides, note, author, and location from a new edge', () => {
     const record = countRecordFromFormData(
       formData({
         left_pkw: '4',
@@ -19,17 +25,50 @@ describe('countRecordFromFormData', () => {
         right_lkw_bus: '',
         note: 'Ecke',
       }),
-      'tordans',
+      {
+        updatedBy: 'tordans',
+        edgeId: 'ce-1',
+        coordinates,
+      },
     )
     expect(record.left).toEqual({ pkw: 4, motorrad: null, lkw_bus: 0 })
     expect(record.right).toEqual({ pkw: 2, motorrad: 1, lkw_bus: null })
     expect(record.note).toBe('Ecke')
     expect(record.updated_by).toBe('tordans')
     expect(record.updated_at).toEqual(expect.any(String))
+    expect(record.counted_at).toBe(record.updated_at)
+    expect(record.match_id).toBe('ce-1')
+    expect(record.match_status).toBe('id')
+    expect(record.mid_lat).toEqual(expect.any(Number))
+    expect(record.mid_lng).toEqual(expect.any(Number))
+  })
+
+  it('copies midpoint, match, and counted_at from an existing record', () => {
+    const existing = emptyCountRecord('2026-01-01T00:00:00.000Z', {
+      match_id: 'ce-1',
+      match_status: 'midpoint',
+      mid_lat: 47.61,
+      mid_lng: 7.66,
+      counted_at: '2026-01-01T00:00:00.000Z',
+    })
+    const record = countRecordFromFormData(formData({ note: 'neu' }), {
+      existing,
+      updatedBy: 'tordans',
+    })
+    expect(record.note).toBe('neu')
+    expect(record.mid_lat).toBe(47.61)
+    expect(record.mid_lng).toBe(7.66)
+    expect(record.match_id).toBe('ce-1')
+    expect(record.match_status).toBe('midpoint')
+    expect(record.counted_at).toBe('2026-01-01T00:00:00.000Z')
+    expect(record.updated_at).not.toBe('2026-01-01T00:00:00.000Z')
   })
 
   it('omits an empty note', () => {
-    const record = countRecordFromFormData(formData({ note: '' }))
+    const record = countRecordFromFormData(formData({ note: '' }), {
+      edgeId: 'ce-1',
+      coordinates,
+    })
     expect(record.note).toBeUndefined()
     expect(readSideCount(formData({}), 'left')).toEqual({
       pkw: null,

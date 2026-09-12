@@ -21,6 +21,8 @@ function matchesQuery(entry: CountStoreEntry, q: string) {
     entry.edgeId,
     entry.record.note ?? '',
     entry.record.updated_by ?? '',
+    entry.record.match_id,
+    entry.record.match_status,
   ]
     .join(' ')
     .toLowerCase()

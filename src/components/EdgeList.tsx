@@ -7,6 +7,7 @@ import { Subheading } from '@/components/ui/heading'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
+import { recordForEdge } from '@/shared/counts/match-counts'
 import { countedSides } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
@@ -29,7 +30,7 @@ export function EdgeList() {
   const records = countsQuery.data ?? {}
   const features = edgesQuery.data.collection.features.filter((feature) => {
     if (!uncounted) return true
-    return countedSides(records[feature.properties.id]) !== 2
+    return countedSides(recordForEdge(records, feature.properties.id)) !== 2
   })
 
   return (
@@ -51,7 +52,7 @@ export function EdgeList() {
       </div>
       <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
         {features.map((feature) => {
-          const sides = countedSides(records[feature.properties.id])
+          const sides = countedSides(recordForEdge(records, feature.properties.id))
           const selected = feature.properties.id === selectedId
           return (
             <li key={feature.properties.id}>

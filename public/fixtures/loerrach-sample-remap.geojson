@@ -1,0 +1,152 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "schema": "counting-edges/v1",
+    "dataset": "loerrach-sample",
+    "region": "Lörrach",
+    "generated_at": "2026-09-12T08:00:00.000Z",
+    "source": "hand-drawn remap fixture for matching tests (not TILDA). Use after counting loerrach-sample.geojson under the same project name. Cases: ce-basler-nord/ce-tumringer/ce-wiesental keep ids (updated capacities); ce-wallbrunn-v2 is the old Wallbrunn geometry shifted ~3 m (midpoint match); ce-teich and ce-marktplatz are gone (no match); ce-hebel is new."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "ce-basler-nord",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.6598, 47.6164],
+          [7.661, 47.61515],
+          [7.6618, 47.6141]
+        ]
+      },
+      "properties": {
+        "id": "ce-basler-nord",
+        "name": "Basler Straße",
+        "highway": "tertiary",
+        "road": "tertiary",
+        "way_ids": [401001, 401002],
+        "way_reversed": [false, false],
+        "start_node": 501001,
+        "end_node": 501002,
+        "length": 191.2,
+        "azimuth": 151.8,
+        "capacity_left": 21,
+        "capacity_right": 11,
+        "parking_left": "lane",
+        "parking_right": "lane"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ce-tumringer",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.6618, 47.6141],
+          [7.6634, 47.6146],
+          [7.6651, 47.615]
+        ]
+      },
+      "properties": {
+        "id": "ce-tumringer",
+        "name": "Tumringer Straße",
+        "highway": "residential",
+        "road": "residential",
+        "way_ids": [401010],
+        "way_reversed": [false],
+        "start_node": 501002,
+        "end_node": 501010,
+        "length": 142.2,
+        "azimuth": 72.4,
+        "capacity_left": 14,
+        "capacity_right": 10,
+        "parking_left": "lane",
+        "parking_right": "street_side"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ce-wallbrunn-v2",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.6618, 47.61413],
+          [7.6604, 47.61323],
+          [7.6591, 47.61243]
+        ]
+      },
+      "properties": {
+        "id": "ce-wallbrunn-v2",
+        "name": "Wallbrunnstraße",
+        "highway": "residential",
+        "road": "residential",
+        "way_ids": [401020, 401021],
+        "way_reversed": [false, true],
+        "start_node": 501002,
+        "end_node": 501020,
+        "length": 168.9,
+        "azimuth": 214.8,
+        "capacity_left": 15,
+        "capacity_right": 0,
+        "parking_left": "lane",
+        "parking_right": "no"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ce-wiesental",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.6651, 47.615],
+          [7.6668, 47.6161],
+          [7.6682, 47.617]
+        ]
+      },
+      "properties": {
+        "id": "ce-wiesental",
+        "name": "Wiesentalstraße",
+        "highway": "secondary",
+        "road": "secondary",
+        "way_ids": [401050, 401051],
+        "way_reversed": [false, false],
+        "start_node": 501010,
+        "end_node": 501050,
+        "length": 214.9,
+        "azimuth": 48.6,
+        "capacity_left": 22,
+        "capacity_right": 19,
+        "parking_left": "lane",
+        "parking_right": "lane"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ce-hebel",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [7.6578, 47.6182],
+          [7.659, 47.6188],
+          [7.6602, 47.6193]
+        ]
+      },
+      "properties": {
+        "id": "ce-hebel",
+        "name": "Hebelstraße",
+        "highway": "residential",
+        "road": "residential",
+        "way_ids": [401060],
+        "way_reversed": [false],
+        "start_node": 501060,
+        "end_node": 501061,
+        "length": 132.4,
+        "azimuth": 56.2,
+        "capacity_left": 10,
+        "capacity_right": 8,
+        "parking_left": "lane",
+        "parking_right": "lane"
+      }
+    }
+  ]
+}

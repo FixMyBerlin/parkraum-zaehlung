@@ -73,7 +73,7 @@ describe('edges schema', () => {
     expect(isValidDatasetName('download')).toBe(true)
   })
 
-  it('drops unlocated GeoJSON features before validating edges', () => {
+  it('drops unlocated and Point GeoJSON features before validating edges', () => {
     const withOrphan = {
       ...sample,
       features: [
@@ -82,7 +82,13 @@ describe('edges schema', () => {
           type: 'Feature' as const,
           id: 'orphan',
           geometry: null,
-          properties: { id: 'orphan', count_status: 'orphan' },
+          properties: { id: 'orphan', count_status: 'unmatched' },
+        },
+        {
+          type: 'Feature' as const,
+          id: 'point',
+          geometry: { type: 'Point' as const, coordinates: [7.7, 47.7] },
+          properties: { id: 'point', count_status: 'unresolved' },
         },
       ],
     }

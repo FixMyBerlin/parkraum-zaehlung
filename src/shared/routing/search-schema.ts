@@ -39,6 +39,7 @@ export const indexSearchSchema = z.object({
     .transform((value) => serializeMapParam(value)),
   dataset: optionalTrimmedSearchString,
   edge: optionalTrimmedSearchString,
+  match: optionalTrimmedSearchString,
   uncounted: optionalFlag.catch(false),
   parkings: optionalFlag.catch(false),
   step: z

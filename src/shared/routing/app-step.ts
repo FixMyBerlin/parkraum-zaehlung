@@ -1,3 +1,4 @@
+import { recordForEdge } from '@/shared/counts/match-counts'
 import { countedSides, type CountRecord } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
@@ -23,7 +24,7 @@ export function edgeCountProgress(
 ) {
   const total = edges.features.length
   const counted = edges.features.filter(
-    (feature) => countedSides(records[feature.properties.id]) === 2,
+    (feature) => countedSides(recordForEdge(records, feature.properties.id)) === 2,
   ).length
   return { counted, total }
 }

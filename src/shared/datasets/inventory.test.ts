@@ -37,9 +37,9 @@ describe('buildDatasetInventory', () => {
       ],
       {
         both: {
-          x: emptyCountRecord(),
-          y: emptyCountRecord(),
-          stale: emptyCountRecord(),
+          x: emptyCountRecord(undefined, { match_id: 'x' }),
+          y: emptyCountRecord(undefined, { match_id: 'y' }),
+          stale: emptyCountRecord(undefined, { match_id: 'stale' }),
         },
         'local-only': {},
       },

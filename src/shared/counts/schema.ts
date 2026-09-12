@@ -14,21 +14,42 @@ export const emptySideCount = (): SideCount => ({
   lkw_bus: null,
 })
 
+export const matchStatusSchema = z.enum(['id', 'midpoint', 'manual', 'none'])
+
+export type MatchStatus = z.infer<typeof matchStatusSchema>
+
 export const countRecordSchema = z.object({
   left: sideCountSchema,
   right: sideCountSchema,
   note: z.string().optional(),
   updated_at: z.string(),
   updated_by: z.string().optional(),
+  counted_at: z.string(),
+  mid_lat: z.number(),
+  mid_lng: z.number(),
+  match_id: z.string(),
+  match_status: matchStatusSchema,
 })
 
 export type CountRecord = z.infer<typeof countRecordSchema>
 
-export function emptyCountRecord(updatedAt = new Date().toISOString()): CountRecord {
+type EmptyCountExtras = Partial<
+  Pick<CountRecord, 'match_id' | 'match_status' | 'mid_lat' | 'mid_lng' | 'counted_at'>
+>
+
+export function emptyCountRecord(
+  updatedAt = new Date().toISOString(),
+  extras: EmptyCountExtras = {},
+): CountRecord {
   return {
     left: emptySideCount(),
     right: emptySideCount(),
     updated_at: updatedAt,
+    counted_at: extras.counted_at ?? updatedAt,
+    match_id: extras.match_id ?? '',
+    match_status: extras.match_status ?? 'id',
+    mid_lat: extras.mid_lat ?? 0,
+    mid_lng: extras.mid_lng ?? 0,
   }
 }
 

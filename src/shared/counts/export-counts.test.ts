@@ -40,32 +40,52 @@ const collection: CountingEdgesGeoJSON = {
   ],
 }
 
+function recordFor(id: string, extras: Parameters<typeof emptyCountRecord>[1] = {}) {
+  return {
+    ...emptyCountRecord('2026-09-08T00:00:00.000Z', {
+      match_id: id,
+      match_status: 'id',
+      mid_lat: 47.611,
+      mid_lng: 7.6605,
+      ...extras,
+    }),
+    left: { pkw: 3, motorrad: 1, lkw_bus: null },
+  }
+}
+
 describe('mergeCountsIntoEdges', () => {
   it('copies left/right category fields onto matching features', () => {
-    const record = {
-      ...emptyCountRecord('2026-09-08T00:00:00.000Z'),
-      left: { pkw: 3, motorrad: 1, lkw_bus: null },
-    }
-    const merged = mergeCountsIntoEdges(collection, { 'ce-1': record })
+    const merged = mergeCountsIntoEdges(collection, { 'ce-1': recordFor('ce-1') })
     expect(merged.features[0]?.properties).toMatchObject({
       left_pkw: 3,
       left_motorrad: 1,
       counted_sides: 1,
+      original_edge_id: 'ce-1',
+      match_id: 'ce-1',
+      match_status: 'id',
     })
   })
 
+  it('joins a rematched count via match_id, not the KV key', () => {
+    const rematched = recordFor('ce-1', { match_status: 'manual' })
+    const merged = mergeCountsIntoEdges(collection, { 'ce-old': rematched })
+    expect(merged.features[0]?.properties).toMatchObject({
+      id: 'ce-1',
+      count_status: 'counted',
+      original_edge_id: 'ce-old',
+      match_id: 'ce-1',
+      match_status: 'manual',
+    })
+    expect(merged.features.some((feature) => feature.geometry.type === 'Point')).toBe(false)
+  })
+
   it('marks matching features as counted', () => {
-    const record = {
-      ...emptyCountRecord('2026-09-08T00:00:00.000Z'),
-      left: { pkw: 3, motorrad: 1, lkw_bus: null },
-    }
-    const merged = mergeCountsIntoEdges(collection, { 'ce-1': record })
+    const merged = mergeCountsIntoEdges(collection, { 'ce-1': recordFor('ce-1') })
     expect(merged.features[0]?.properties.count_status).toBe('counted')
   })
 
   it('keeps unmatched edges with count_status uncounted and no invented counts', () => {
-    const record = emptyCountRecord('2026-09-08T00:00:00.000Z')
-    const merged = mergeCountsIntoEdges(collection, { 'ce-1': record })
+    const merged = mergeCountsIntoEdges(collection, { 'ce-1': recordFor('ce-1') })
     const uncounted = merged.features.find((feature) => feature.properties.id === 'ce-2')
     expect(uncounted?.geometry).toEqual(collection.features[1]?.geometry)
     expect(uncounted?.properties).toMatchObject({
@@ -77,9 +97,14 @@ describe('mergeCountsIntoEdges', () => {
     expect(uncounted?.properties).not.toHaveProperty('counted_sides')
   })
 
-  it('appends unmatched counts as null-geometry orphan features', () => {
+  it('appends unresolved counts as Point features at the stored midpoint', () => {
     const orphan = {
-      ...emptyCountRecord('2026-09-08T00:00:00.000Z'),
+      ...emptyCountRecord('2026-09-08T00:00:00.000Z', {
+        match_id: '',
+        match_status: 'id',
+        mid_lat: 47.7,
+        mid_lng: 7.7,
+      }),
       left: { pkw: 2, motorrad: null, lkw_bus: 1 },
       note: 'stale id',
     }
@@ -93,18 +118,31 @@ describe('mergeCountsIntoEdges', () => {
     expect(orphanFeature).toMatchObject({
       type: 'Feature',
       id: 'ce-orphan',
-      geometry: null,
+      geometry: { type: 'Point', coordinates: [7.7, 47.7] },
       properties: {
         id: 'ce-orphan',
-        count_status: 'orphan',
+        count_status: 'unresolved',
+        original_edge_id: 'ce-orphan',
+        match_id: '',
+        match_status: 'id',
         left_pkw: 2,
-        left_motorrad: null,
-        left_lkw_bus: 1,
-        counted_sides: 1,
-        note: 'stale id',
         counted_at: '2026-09-08T00:00:00.000Z',
+        note: 'stale id',
       },
     })
+  })
+
+  it('exports confirmed unmatched counts as unmatched Points', () => {
+    const none = emptyCountRecord('2026-09-08T00:00:00.000Z', {
+      match_id: '',
+      match_status: 'none',
+      mid_lat: 47.7,
+      mid_lng: 7.7,
+    })
+    const merged = mergeCountsIntoEdges(collection, { 'ce-gone': none })
+    const feature = merged.features.find((item) => item.properties.id === 'ce-gone')
+    expect(feature?.properties.count_status).toBe('unmatched')
+    expect(feature?.geometry).toEqual({ type: 'Point', coordinates: [7.7, 47.7] })
   })
 
   it('preserves collection metadata', () => {
@@ -115,8 +153,8 @@ describe('mergeCountsIntoEdges', () => {
 
 describe('buildAllCountsFile', () => {
   it('wraps each dataset map with buildCountsFile', () => {
-    const a = emptyCountRecord('2026-09-08T00:00:00.000Z')
-    const b = emptyCountRecord('2026-09-09T00:00:00.000Z')
+    const a = emptyCountRecord('2026-09-08T00:00:00.000Z', { match_id: 'ce-1' })
+    const b = emptyCountRecord('2026-09-09T00:00:00.000Z', { match_id: 'ce-2' })
     const file = buildAllCountsFile({
       alpha: { 'ce-1': a },
       beta: { 'ce-2': b },

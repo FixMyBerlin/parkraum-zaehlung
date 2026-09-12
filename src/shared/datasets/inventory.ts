@@ -1,5 +1,6 @@
 import type { DatasetSummary } from '@/shared/counts/count-store'
 import { datasetOverlap, type DatasetOverlap } from '@/shared/counts/dataset-overlap'
+import { assignedMatchIds } from '@/shared/counts/match-counts'
 import type { CountRecord } from '@/shared/counts/schema'
 import type { StoredDataset } from './dataset-idb'
 
@@ -41,7 +42,7 @@ export function buildDatasetInventory(
       local: true,
       remoteEntryCount,
       localEdgeCount: edgeIds.length,
-      overlap: records ? datasetOverlap(edgeIds, Object.keys(records)) : null,
+      overlap: records ? datasetOverlap(edgeIds, assignedMatchIds(records)) : null,
     }
   })
 }
@@ -59,8 +60,6 @@ export function datasetInventoryCopy(row: DatasetInventoryRow) {
   const totalEdges = row.localEdgeCount ?? 0
   const matchedLine = `Treffer ${row.overlap.matched}/${totalEdges} (${row.overlap.matchedPercent} %). Ohne Zählung: ${row.overlap.edgesWithoutCount} Kanten.`
   const orphan =
-    row.overlap.countsWithoutEdge > 0
-      ? ` Nur in der Zähl-Datenbank (keine Kante): ${row.overlap.countsWithoutEdge}.`
-      : ''
+    row.overlap.countsWithoutEdge > 0 ? ` Ohne Zuordnung: ${row.overlap.countsWithoutEdge}.` : ''
   return `Zähl-Datenbank: ${row.remoteEntryCount} Zählungen. Kanten hochgeladen: ${totalEdges}. ${matchedLine}${orphan}`
 }

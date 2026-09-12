@@ -3,6 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { useState } from 'react'
+import { MatchEdgesPanel, stayOnDatasetAfterMatch } from '@/components/MatchEdgesPanel'
 import { MotionCollapse } from '@/components/shared/motion/MotionCollapse'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
@@ -11,13 +12,16 @@ import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { SidebarDivider } from '@/components/ui/sidebar'
 import { Code, Text, TextLink } from '@/components/ui/text'
-import { sampleEdgesGithubUrl } from '@/config/app.const'
+import { sampleEdgesGithubUrl, sampleEdgesRemapUrl } from '@/config/app.const'
 import {
   countStore,
   countsQueryKey,
   datasetSummariesQueryKey,
 } from '@/features/counts/counts-query'
+import { persistMatchWrites } from '@/features/counts/use-assign-match'
+import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
+import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
 import type { CountRecord } from '@/shared/counts/schema'
 import { listDatasets, loadDataset, saveDataset } from '@/shared/datasets/dataset-idb'
 import { buildDatasetInventory, datasetInventoryCopy } from '@/shared/datasets/inventory'
@@ -33,16 +37,33 @@ const infoIconButtonClassName =
 const projectNameHelp =
   'Der Projektname ist der Schlüssel für alle Zählungen dieses Kartierprojekts und kann später nicht geändert werden. Empfehlung: ein kurzer Slug ohne Datum, z. B. loerrach. Gleicher Name = gleiches Projekt, auch wenn du die Kanten später neu hochlädst.'
 
-async function confirmReplaceIfIdsChanged(dataset: string, collection: CountingEdgesGeoJSON) {
-  const existing = await loadDataset(dataset)
-  if (!existing) return true
-  const nextIds = new Set(collection.features.map((feature) => feature.properties.id))
-  const records = await countStore.list(dataset)
-  const orphaned = Object.keys(records).filter((id) => !nextIds.has(id)).length
-  if (orphaned === 0) return true
-  return window.confirm(
-    `${orphaned} vorhandene Zählungen haben danach keine passende Kante mehr. Trotzdem ersetzen?`,
-  )
+async function matchAfterEdgesLoaded(
+  name: string,
+  collection: CountingEdgesGeoJSON,
+  authenticated: boolean,
+) {
+  try {
+    const records = await countStore.list(name)
+    const result = matchCountsToEdges(records, edgeMatchInputs(collection))
+    if (authenticated) {
+      try {
+        await persistMatchWrites(name, result.writes)
+      } catch {
+        // Keep the review UI even if auto-writes could not be stored yet.
+      }
+    }
+    const stay = stayOnDatasetAfterMatch(
+      result.unresolved.length,
+      result.writes.length,
+      authenticated,
+    )
+    return {
+      stay,
+      match: stay ? result.unresolved[0]?.originalId : undefined,
+    }
+  } catch {
+    return { stay: false as const, match: undefined }
+  }
 }
 
 export function DatasetPanel() {
@@ -71,7 +92,9 @@ export function DatasetPanel() {
   }
   const inventory = buildDatasetInventory(localDatasets, summariesQuery.data ?? [], countsByDataset)
   const selectedRow = inventory.find((row) => row.dataset === dataset)
+  const selectedStored = localDatasets.find((item) => item.dataset === dataset)
 
+  const auth = useOsmAuth()
   const [pendingName, setPendingName] = useState('')
   const [pendingText, setPendingText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -86,28 +109,29 @@ export function DatasetPanel() {
         )
       }
       const parsed = parseEdgesText(text, name)
-      const confirmed = await confirmReplaceIfIdsChanged(name, parsed.collection)
-      if (!confirmed) throw new Error('cancelled')
-      return saveDataset(parsed.collection, name)
+      const stored = await saveDataset(parsed.collection, name)
+      const matched = await matchAfterEdgesLoaded(name, parsed.collection, auth.authenticated)
+      return { stored, matched }
     },
-    onSuccess: async (stored) => {
+    onSuccess: async ({ stored, matched }) => {
       setError(null)
       setPendingText(null)
       await queryClient.invalidateQueries({ queryKey: ['datasets'] })
       await queryClient.invalidateQueries({ queryKey: ['dataset', stored.dataset] })
+      await queryClient.invalidateQueries({ queryKey: countsQueryKey(stored.dataset) })
       await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
       await navigate({
         search: (previous) => ({
           ...previous,
           dataset: stored.dataset,
           edge: undefined,
-          step: 'count',
+          match: matched.match,
+          step: matched.stay ? 'dataset' : 'count',
         }),
         replace: true,
       })
     },
     onError: (caught: unknown) => {
-      if (caught instanceof Error && caught.message === 'cancelled') return
       setError(caught instanceof Error ? caught.message : 'Import fehlgeschlagen')
     },
   })
@@ -154,17 +178,42 @@ export function DatasetPanel() {
                         ? 'bg-white/10 text-white'
                         : 'text-zinc-300 hover:bg-white/5 hover:text-white',
                     )}
-                    onClick={() =>
-                      void navigate({
-                        search: (previous) => ({
-                          ...previous,
-                          dataset: row.dataset,
-                          edge: undefined,
-                          step: 'count',
-                        }),
-                        replace: true,
-                      })
-                    }
+                    onClick={() => {
+                      void (async () => {
+                        const stored = await loadDataset(row.dataset)
+                        if (!stored) {
+                          await navigate({
+                            search: (previous) => ({
+                              ...previous,
+                              dataset: row.dataset,
+                              edge: undefined,
+                              match: undefined,
+                              step: 'count',
+                            }),
+                            replace: true,
+                          })
+                          return
+                        }
+                        const matched = await matchAfterEdgesLoaded(
+                          row.dataset,
+                          stored.collection,
+                          auth.authenticated,
+                        )
+                        await queryClient.invalidateQueries({
+                          queryKey: countsQueryKey(row.dataset),
+                        })
+                        await navigate({
+                          search: (previous) => ({
+                            ...previous,
+                            dataset: row.dataset,
+                            edge: undefined,
+                            match: matched.match,
+                            step: matched.stay ? 'dataset' : 'count',
+                          }),
+                          replace: true,
+                        })
+                      })()
+                    }}
                   >
                     <span className="font-semibold">{row.dataset}</span>
                     <span className="ml-2 text-xs text-zinc-400">
@@ -186,6 +235,13 @@ export function DatasetPanel() {
           <Text className="mt-3">Noch kein Projekt in diesem Browser oder der Zähl-Datenbank.</Text>
         )}
       </Fieldset>
+      {dataset && selectedStored ? (
+        <MatchEdgesPanel
+          dataset={dataset}
+          collection={selectedStored.collection}
+          records={countsByDataset[dataset] ?? {}}
+        />
+      ) : null}
       <SidebarDivider />
       <Fieldset>
         <Subheading>Neues Projekt anlegen</Subheading>
@@ -250,6 +306,14 @@ export function DatasetPanel() {
                 <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
                   Testdaten herunterladen (dann hochladen)
                 </TextLink>
+              </Text>
+              <Text>
+                Nach dem Zählen dieselbe Kampagne neu zuordnen:{' '}
+                <TextLink href={sampleEdgesRemapUrl} target="_blank" rel="noreferrer">
+                  Testdaten zum Neu-Zuordnen herunterladen
+                </TextLink>
+                . Gleicher Projektname. Fälle: gleiche ID mit geänderten Kapazitäten; neue ID am
+                selben Ort (Mittelpunkt); Kante ohne Partner; neue Kante.
               </Text>
             </div>
           </MotionCollapse>

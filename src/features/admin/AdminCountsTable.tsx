@@ -34,6 +34,7 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
         <TableRow>
           <TableHeader>Projekt</TableHeader>
           <TableHeader>Kante</TableHeader>
+          <TableHeader data-testid="admin-col-match">Zuordnung</TableHeader>
           <TableHeader>Links Pkw / Motorrad / Lkw</TableHeader>
           <TableHeader>Rechts Pkw / Motorrad / Lkw</TableHeader>
           <TableHeader>Notiz</TableHeader>
@@ -56,6 +57,10 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
             >
               <TableCell className="font-medium">{entry.dataset}</TableCell>
               <TableCell className="max-w-48 truncate text-zinc-400">{entry.edgeId}</TableCell>
+              <TableCell className="max-w-40 truncate text-zinc-400">
+                {entry.record.match_status}
+                {entry.record.match_id ? ` → ${entry.record.match_id}` : ''}
+              </TableCell>
               <TableCell className="tabular-nums">{formatSide(entry.record.left)}</TableCell>
               <TableCell className="tabular-nums">{formatSide(entry.record.right)}</TableCell>
               <TableCell className="max-w-40 truncate text-zinc-400">

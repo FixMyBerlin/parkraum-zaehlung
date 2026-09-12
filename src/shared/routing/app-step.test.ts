@@ -57,6 +57,7 @@ describe('stepDescription', () => {
     const records = {
       a: {
         ...empty,
+        match_id: 'a',
         left: { pkw: 1, motorrad: null, lkw_bus: null },
         right: { pkw: 1, motorrad: null, lkw_bus: null },
       },

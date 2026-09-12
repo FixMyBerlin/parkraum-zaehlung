@@ -12,6 +12,7 @@ import { Divider } from '@/components/ui/divider'
 import { Field, Fieldset, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   allCountsQueryKey,
@@ -46,7 +47,10 @@ export function AdminCountForm({ entry }: Props) {
       return countStore.put(
         dataset,
         edgeId,
-        countRecordFromFormData(new FormData(form), auth.displayName),
+        countRecordFromFormData(new FormData(form), {
+          updatedBy: auth.displayName,
+          existing: saved,
+        }),
       )
     },
     onSuccess: async () => {
@@ -90,6 +94,12 @@ export function AdminCountForm({ entry }: Props) {
           <DescriptionDetails>{dataset}</DescriptionDetails>
           <DescriptionTerm>Kante</DescriptionTerm>
           <DescriptionDetails className="break-all">{edgeId}</DescriptionDetails>
+          <DescriptionTerm>Mittelpunkt</DescriptionTerm>
+          <DescriptionDetails>
+            {saved.mid_lat.toFixed(6)}, {saved.mid_lng.toFixed(6)}
+          </DescriptionDetails>
+          <DescriptionTerm>Gezählt</DescriptionTerm>
+          <DescriptionDetails>{saved.counted_at.replace('T', ' ').slice(0, 19)}</DescriptionDetails>
           <DescriptionTerm>Zuletzt</DescriptionTerm>
           <DescriptionDetails>
             {saved.updated_by ?? '—'}
@@ -132,6 +142,20 @@ export function AdminCountForm({ entry }: Props) {
           ))}
         </div>
       </Fieldset>
+
+      <Field>
+        <Label>Match-ID</Label>
+        <Input name="match_id" defaultValue={saved.match_id} autoComplete="off" />
+      </Field>
+      <Field>
+        <Label>Match-Status</Label>
+        <Select name="match_status" defaultValue={saved.match_status} aria-label="Match-Status">
+          <option value="id">id</option>
+          <option value="midpoint">midpoint</option>
+          <option value="manual">manual</option>
+          <option value="none">none</option>
+        </Select>
+      </Field>
 
       <Field>
         <Label>Notiz</Label>

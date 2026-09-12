@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { MapLayerMouseEvent, MapLibreEvent } from 'maplibre-gl'
+import { useEffect } from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@/shared/map/maplibre-worker'
 import {
@@ -8,11 +9,13 @@ import {
   Layer,
   Map,
   Source,
+  useMap,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
 import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
 import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
+import { useAssignMatch } from '@/features/counts/use-assign-match'
 import { decorateEdges } from '@/features/edges/decorate-edges'
 import {
   useFocusedCountSide,
@@ -22,6 +25,7 @@ import {
 } from '@/features/map/map-ui-store'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
+import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import {
   EDGE_SIDE_LINE_COLOR,
@@ -31,16 +35,20 @@ import {
 import { exposeMainMapForDebugging } from '@/shared/map/expose-main-map'
 import {
   EDGES_ARROWS_LAYER_ID,
+  EDGES_ID_LABELS_LAYER_ID,
   EDGES_LAYER_ID,
   EDGES_LEFT_LAYER_ID,
   EDGES_RIGHT_LAYER_ID,
   EDGES_SELECTED_LAYER_ID,
   EDGES_SOURCE_ID,
   MAIN_MAP_ID,
+  MATCH_POINT_LAYER_ID,
+  MATCH_POINT_SOURCE_ID,
   PARKINGS_LAYER_ID,
   PARKINGS_SOURCE_ID,
   interactiveEdgeLayerIds,
 } from '@/shared/map/map-ids'
+import { resolveStep } from '@/shared/routing/app-step'
 import { searchMapParam, serializeIndexSearchMap } from '@/shared/routing/search-schema'
 
 const OPENFREEMAP_POSITRON = 'https://tiles.openfreemap.org/styles/positron'
@@ -49,7 +57,10 @@ export function CountingMap() {
   const navigate = useNavigate({ from: Route.fullPath })
   const search = Route.useSearch()
   const map = searchMapParam(search)
-  const { dataset, edge, uncounted, parkings } = search
+  const { dataset, edge, uncounted, parkings, match: matchId } = search
+  const currentStep = resolveStep(search)
+  const matchMode = currentStep === 'dataset' && Boolean(matchId)
+  const { assign } = useAssignMatch(dataset)
   const hoveredEdgeId = useHoveredEdgeId()
   const hoveredSide = useHoveredSide()
   const focusedCountSide = useFocusedCountSide()
@@ -72,8 +83,35 @@ export function CountingMap() {
     enabled: Boolean(dataset),
   })
 
-  const geojson =
-    edgesQuery.data && decorateEdges(edgesQuery.data.collection, countsQuery.data ?? {}, uncounted)
+  const records = countsQuery.data ?? {}
+  const collection = edgesQuery.data?.collection
+  const matchResult = collection
+    ? matchCountsToEdges(records, edgeMatchInputs(collection))
+    : undefined
+  const selectedMatch = matchResult?.rows.find((row) => row.originalId === matchId)
+  const matchUi = matchMode
+    ? {
+        candidateIds: new Set(selectedMatch?.candidates.map((candidate) => candidate.id) ?? []),
+        selectedCandidateId: edge,
+      }
+    : undefined
+  const geojson = collection && decorateEdges(collection, records, uncounted, matchUi)
+  const matchPoint =
+    matchMode && selectedMatch
+      ? {
+          type: 'FeatureCollection' as const,
+          features: [
+            {
+              type: 'Feature' as const,
+              geometry: {
+                type: 'Point' as const,
+                coordinates: [selectedMatch.record.mid_lng, selectedMatch.record.mid_lat],
+              },
+              properties: {},
+            },
+          ],
+        }
+      : undefined
 
   function featureIdFromEvent(event: MapLayerMouseEvent) {
     const feature = event.features?.[0]
@@ -128,6 +166,14 @@ export function CountingMap() {
         onClick={(event: MapLayerMouseEvent) => {
           const id = featureIdFromEvent(event)
           if (!id) return
+          if (matchMode && matchId) {
+            assign.mutate({ originalId: matchId, matchId: id, status: 'manual' })
+            void navigate({
+              search: (previous) => ({ ...previous, edge: id, step: 'dataset' }),
+              replace: true,
+            })
+            return
+          }
           void navigate({
             search: (previous) => ({ ...previous, edge: id, step: 'count' }),
             replace: true,
@@ -185,6 +231,9 @@ export function CountingMap() {
                   '#eab308',
                   '#64748b',
                 ],
+                'line-opacity': matchMode
+                  ? ['case', ['boolean', ['get', 'match_candidate'], false], 1, 0.25]
+                  : 1,
               }}
             />
             <Layer
@@ -226,12 +275,69 @@ export function CountingMap() {
                 'text-color': '#e2e8f0',
               }}
             />
+            <Layer
+              id={EDGES_ID_LABELS_LAYER_ID}
+              type="symbol"
+              source={EDGES_SOURCE_ID}
+              layout={{
+                visibility: matchMode ? 'visible' : 'none',
+                'symbol-placement': 'line-center',
+                'text-field': [
+                  'concat',
+                  ['get', 'id'],
+                  [
+                    'case',
+                    ['all', ['has', 'name'], ['!=', ['to-string', ['get', 'name']], '']],
+                    ['concat', '\n', ['to-string', ['get', 'name']]],
+                    '',
+                  ],
+                ],
+                'text-size': 11,
+                'text-allow-overlap': true,
+              }}
+              paint={{
+                'text-color': '#0f172a',
+                'text-halo-color': '#f8fafc',
+                'text-halo-width': 1.5,
+              }}
+            />
           </>
         )}
+        {matchPoint ? <Source id={MATCH_POINT_SOURCE_ID} type="geojson" data={matchPoint} /> : null}
+        {matchPoint ? (
+          <Layer
+            id={MATCH_POINT_LAYER_ID}
+            type="circle"
+            source={MATCH_POINT_SOURCE_ID}
+            paint={{
+              'circle-radius': 7,
+              'circle-color': '#0ea5e9',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#f8fafc',
+            }}
+          />
+        ) : null}
       </Map>
+      {selectedMatch ? (
+        <FlyToSelectedMatch
+          keyId={selectedMatch.originalId}
+          lng={selectedMatch.record.mid_lng}
+          lat={selectedMatch.record.mid_lat}
+        />
+      ) : null}
       <ParkingsLayerToggle parkings={parkings} />
     </div>
   )
+}
+
+function FlyToSelectedMatch({ keyId, lng, lat }: { keyId: string; lng: number; lat: number }) {
+  const maps = useMap()
+  useEffect(() => {
+    const map = maps[MAIN_MAP_ID]
+    if (!map) return
+    map.flyTo({ center: [lng, lat], zoom: 18, duration: 700 })
+  }, [maps, keyId, lng, lat])
+  return null
 }
 
 function ParkingsLayerToggle({ parkings }: { parkings: boolean }) {
