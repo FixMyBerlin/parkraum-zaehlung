@@ -31,4 +31,8 @@ describe('routerSearch', () => {
   it('round-trips step=export', () => {
     expect(roundTrip({ step: 'export' }).step).toBe('export')
   })
+
+  it('drops the former login step from the URL', () => {
+    expect(roundTrip({ step: 'login' }).step).toBeUndefined()
+  })
 })

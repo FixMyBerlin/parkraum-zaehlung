@@ -1,5 +1,5 @@
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/20/solid'
+import { XMarkIcon } from '@heroicons/react/20/solid'
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import {
   MAX_SIDEBAR_WIDTH,
@@ -10,66 +10,59 @@ import {
 import { cn } from '@/shared/cn'
 
 type SidebarLayoutProps = {
+  header: (opts: { onOpenSidebar: () => void }) => ReactNode
   sidebar: ReactNode
   children: ReactNode
 }
 
-export function SidebarLayout({ sidebar, children }: SidebarLayoutProps) {
+export function SidebarLayout({ header, sidebar, children }: SidebarLayoutProps) {
   const sidebarWidth = useSidebarWidth()
   const { setWidth } = useSidebarWidthActions()
   const [showSidebar, setShowSidebar] = useState(false)
 
   return (
-    <div className="relative isolate flex h-full w-full bg-zinc-950">
-      <aside
-        className="relative hidden h-full min-h-0 shrink-0 bg-zinc-900 lg:flex lg:flex-col"
-        style={{ width: `${sidebarWidth}px` }}
-      >
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{sidebar}</div>
-        <SidebarResizeHandle width={sidebarWidth} setWidth={setWidth} />
-      </aside>
-
-      <Dialog open={showSidebar} onClose={setShowSidebar} className="relative z-50 lg:hidden">
-        <DialogBackdrop
-          transition
-          className="fixed inset-0 bg-zinc-950/80 transition data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
-        />
-        <div className="fixed inset-0 flex">
-          <DialogPanel
-            transition
-            className="relative flex w-full max-w-sm flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
-          >
-            <div className="flex h-full w-full flex-col bg-zinc-900 ring-1 ring-white/10">
-              <div className="flex justify-end px-3 pt-3">
-                <button
-                  type="button"
-                  className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
-                  aria-label="Seitenleiste schließen"
-                  onClick={() => setShowSidebar(false)}
-                >
-                  <XMarkIcon className="size-5" aria-hidden="true" />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-hidden">{sidebar}</div>
-            </div>
-          </DialogPanel>
-        </div>
-      </Dialog>
-
-      <main className="relative min-h-0 min-w-0 flex-1">
-        <button
-          type="button"
-          className={cn(
-            'absolute top-3 left-3 z-20 inline-flex size-10 items-center justify-center rounded-lg',
-            'bg-zinc-900/90 text-white shadow-lg ring-1 ring-white/10 hover:bg-zinc-800 lg:hidden',
-          )}
-          aria-label="Seitenleiste öffnen"
-          onClick={() => setShowSidebar(true)}
+    <div className="flex h-full w-full flex-col bg-zinc-950">
+      {header({ onOpenSidebar: () => setShowSidebar(true) })}
+      <div className="relative isolate flex min-h-0 flex-1">
+        <aside
+          className="relative hidden h-full min-h-0 shrink-0 bg-zinc-900 lg:flex lg:flex-col"
+          style={{ width: `${sidebarWidth}px` }}
         >
-          <Bars3Icon className="size-5" aria-hidden="true" />
-        </button>
-        {children}
-      </main>
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {sidebar}
+          </div>
+          <SidebarResizeHandle width={sidebarWidth} setWidth={setWidth} />
+        </aside>
+
+        <Dialog open={showSidebar} onClose={setShowSidebar} className="relative z-50 lg:hidden">
+          <DialogBackdrop
+            transition
+            className="fixed inset-0 bg-zinc-950/80 transition data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+          />
+          <div className="fixed inset-0 flex">
+            <DialogPanel
+              transition
+              className="relative flex w-full max-w-sm flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
+            >
+              <div className="flex h-full w-full flex-col bg-zinc-900 ring-1 ring-white/10">
+                <div className="flex justify-end px-3 pt-3">
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                    aria-label="Seitenleiste schließen"
+                    onClick={() => setShowSidebar(false)}
+                  >
+                    <XMarkIcon className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-hidden">{sidebar}</div>
+              </div>
+            </DialogPanel>
+          </div>
+        </Dialog>
+
+        <main className="relative min-h-0 min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   )
 }

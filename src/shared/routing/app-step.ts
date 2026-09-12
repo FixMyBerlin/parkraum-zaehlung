@@ -1,15 +1,14 @@
 import { countedSides, type CountRecord } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
-export const appSteps = ['login', 'dataset', 'count', 'export'] as const
+export const appSteps = ['dataset', 'count', 'export'] as const
 
 export type AppStep = (typeof appSteps)[number]
 
-export const appStepLabels: Record<AppStep, { label: string; shortLabel: string }> = {
-  login: { label: 'Anmelden', shortLabel: 'OSM' },
-  dataset: { label: 'Datensatz', shortLabel: 'Daten' },
-  count: { label: 'Zählen', shortLabel: 'Zähl' },
-  export: { label: 'Export', shortLabel: 'Exp' },
+export const appStepLabels: Record<AppStep, { label: string }> = {
+  dataset: { label: 'Datensatz' },
+  count: { label: 'Zählen' },
+  export: { label: 'Export' },
 }
 
 export function resolveStep(search: { step?: AppStep; dataset?: string }): AppStep {
@@ -31,8 +30,6 @@ export function edgeCountProgress(
 
 type StepDescriptionArgs = {
   step: AppStep
-  authenticated?: boolean
-  displayName?: string
   dataset?: string
   edges?: CountingEdgesGeoJSON
   records?: Record<string, CountRecord>
@@ -45,18 +42,12 @@ function countLabel(count: number) {
 
 export function stepDescription({
   step,
-  authenticated = false,
-  displayName,
   dataset,
   edges,
   records = {},
   remoteCount = 0,
 }: StepDescriptionArgs) {
   switch (step) {
-    case 'login':
-      if (displayName) return displayName
-      if (authenticated) return 'Angemeldet'
-      return 'Nicht angemeldet'
     case 'dataset':
       return dataset || 'Kein Datensatz'
     case 'count':
@@ -75,18 +66,15 @@ export function stepDescription({
 type StepStatusArgs = {
   step: AppStep
   current: AppStep
-  authenticated: boolean
   dataset?: string
 }
 
 export function stepStatus({
   step,
   current,
-  authenticated,
   dataset,
 }: StepStatusArgs): 'complete' | 'current' | 'upcoming' {
   if (step === current) return 'current'
-  if (step === 'login') return authenticated ? 'complete' : 'upcoming'
   if (step === 'dataset') return dataset ? 'complete' : 'upcoming'
   return 'upcoming'
 }

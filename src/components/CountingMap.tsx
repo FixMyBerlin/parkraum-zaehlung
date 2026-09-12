@@ -10,6 +10,7 @@ import {
   Source,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
+import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
 import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
 import { decorateEdges } from '@/features/edges/decorate-edges'
@@ -20,6 +21,7 @@ import {
   useMapUiActions,
 } from '@/features/map/map-ui-store'
 import { Route } from '@/routes/index'
+import { cn } from '@/shared/cn'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import {
   EDGE_SIDE_LINE_COLOR,
@@ -86,145 +88,178 @@ export function CountingMap() {
   }
 
   return (
-    <Map
-      id={MAIN_MAP_ID}
-      mapStyle={OPENFREEMAP_POSITRON}
-      initialViewState={{
-        longitude: map.lng,
-        latitude: map.lat,
-        zoom: map.zoom,
-      }}
-      style={{ width: '100%', height: '100%' }}
-      attributionControl={false}
-      cursor={hoveredSide ? 'pointer' : ''}
-      interactiveLayerIds={[...interactiveEdgeLayerIds]}
-      onLoad={(event: MapLibreEvent) => {
-        exposeMainMapForDebugging(event.target)
-        setMapBearing(event.target.getBearing())
-      }}
-      onRotateEnd={(event: ViewStateChangeEvent) => {
-        setMapBearing(event.viewState.bearing)
-      }}
-      onMoveEnd={(event: ViewStateChangeEvent) => {
-        const { latitude, longitude, zoom } = event.viewState
-        void navigate({
-          search: (previous) => ({
-            ...previous,
-            map: serializeIndexSearchMap({ zoom, lat: latitude, lng: longitude }),
-          }),
-          replace: true,
-        })
-      }}
-      onMouseMove={(event: MapLayerMouseEvent) => {
-        const id = featureIdFromEvent(event)
-        setHover(id, id ? sideFromLayer(event.features?.[0]?.layer?.id) : null)
-      }}
-      onMouseLeave={() => {
-        setHover(null, null)
-      }}
-      onClick={(event: MapLayerMouseEvent) => {
-        const id = featureIdFromEvent(event)
-        if (!id) return
-        void navigate({
-          search: (previous) => ({ ...previous, edge: id, step: 'count' }),
-          replace: true,
-        })
-      }}
-    >
-      <AttributionControl compact />
-      {/* Kept mounted and toggled via `visibility` so the layer order stays deterministic;
-          MapLibre only requests tiles while the layer is visible. */}
-      <Source
-        id={PARKINGS_SOURCE_ID}
-        type="vector"
-        tiles={[`${tildaTilesUrl}/${tildaParkingsTileset}/{z}/{x}/{y}`]}
-      />
-      <Layer
-        id={PARKINGS_LAYER_ID}
-        type="line"
-        source={PARKINGS_SOURCE_ID}
-        source-layer="parkings"
-        layout={{ visibility: parkings ? 'visible' : 'none' }}
-        paint={{
-          'line-color': '#f59e0b',
-          'line-width': 2,
-          'line-opacity': 0.7,
+    <div className="relative h-full w-full">
+      <Map
+        id={MAIN_MAP_ID}
+        mapStyle={OPENFREEMAP_POSITRON}
+        initialViewState={{
+          longitude: map.lng,
+          latitude: map.lat,
+          zoom: map.zoom,
         }}
-      />
-      {geojson && (
-        <>
-          <Source id={EDGES_SOURCE_ID} type="geojson" data={geojson} promoteId="id" />
-          {/* Highlight stays mounted below the edge lines; selection drives `filter`, because a
+        style={{ width: '100%', height: '100%' }}
+        attributionControl={false}
+        cursor={hoveredSide ? 'pointer' : ''}
+        interactiveLayerIds={[...interactiveEdgeLayerIds]}
+        onLoad={(event: MapLibreEvent) => {
+          exposeMainMapForDebugging(event.target)
+          setMapBearing(event.target.getBearing())
+        }}
+        onRotateEnd={(event: ViewStateChangeEvent) => {
+          setMapBearing(event.viewState.bearing)
+        }}
+        onMoveEnd={(event: ViewStateChangeEvent) => {
+          const { latitude, longitude, zoom } = event.viewState
+          void navigate({
+            search: (previous) => ({
+              ...previous,
+              map: serializeIndexSearchMap({ zoom, lat: latitude, lng: longitude }),
+            }),
+            replace: true,
+          })
+        }}
+        onMouseMove={(event: MapLayerMouseEvent) => {
+          const id = featureIdFromEvent(event)
+          setHover(id, id ? sideFromLayer(event.features?.[0]?.layer?.id) : null)
+        }}
+        onMouseLeave={() => {
+          setHover(null, null)
+        }}
+        onClick={(event: MapLayerMouseEvent) => {
+          const id = featureIdFromEvent(event)
+          if (!id) return
+          void navigate({
+            search: (previous) => ({ ...previous, edge: id, step: 'count' }),
+            replace: true,
+          })
+        }}
+      >
+        <AttributionControl compact />
+        {/* Kept mounted and toggled via `visibility` so the layer order stays deterministic;
+          MapLibre only requests tiles while the layer is visible. */}
+        <Source
+          id={PARKINGS_SOURCE_ID}
+          type="vector"
+          tiles={[`${tildaTilesUrl}/${tildaParkingsTileset}/{z}/{x}/{y}`]}
+        />
+        <Layer
+          id={PARKINGS_LAYER_ID}
+          type="line"
+          source={PARKINGS_SOURCE_ID}
+          source-layer="parkings"
+          layout={{ visibility: parkings ? 'visible' : 'none' }}
+          paint={{
+            'line-color': '#f59e0b',
+            'line-width': 2,
+            'line-opacity': 0.7,
+          }}
+        />
+        {geojson && (
+          <>
+            <Source id={EDGES_SOURCE_ID} type="geojson" data={geojson} promoteId="id" />
+            {/* Highlight stays mounted below the edge lines; selection drives `filter`, because a
               layer that mounts later would be added on top of its siblings. */}
-          <Layer
-            id={EDGES_SELECTED_LAYER_ID}
-            type="line"
-            source={EDGES_SOURCE_ID}
-            filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
-            paint={{
-              'line-width': 8,
-              'line-color': '#f8fafc',
-              'line-opacity': 0.35,
-            }}
-          />
-          <Layer
-            id={EDGES_LAYER_ID}
-            type="line"
-            source={EDGES_SOURCE_ID}
-            paint={{
-              'line-width': 4,
-              'line-color': [
-                'match',
-                ['get', 'count_state'],
-                'full',
-                '#22c55e',
-                'partial',
-                '#eab308',
-                '#64748b',
-              ],
-            }}
-          />
-          <Layer
-            id={EDGES_LEFT_LAYER_ID}
-            type="line"
-            source={EDGES_SOURCE_ID}
-            paint={{
-              'line-width': edgeSideLineWidth('left', sideLineArgs),
-              'line-offset': -EDGE_SIDE_LINE_OFFSET,
-              'line-color': EDGE_SIDE_LINE_COLOR.left,
-              'line-opacity': 0.85,
-            }}
-          />
-          <Layer
-            id={EDGES_RIGHT_LAYER_ID}
-            type="line"
-            source={EDGES_SOURCE_ID}
-            paint={{
-              'line-width': edgeSideLineWidth('right', sideLineArgs),
-              'line-offset': EDGE_SIDE_LINE_OFFSET,
-              'line-color': EDGE_SIDE_LINE_COLOR.right,
-              'line-opacity': 0.85,
-            }}
-          />
-          <Layer
-            id={EDGES_ARROWS_LAYER_ID}
-            type="symbol"
-            source={EDGES_SOURCE_ID}
-            layout={{
-              'symbol-placement': 'line',
-              'symbol-spacing': 80,
-              'text-field': '▶',
-              'text-size': 12,
-              'text-keep-upright': false,
-              'text-rotation-alignment': 'map',
-              'text-allow-overlap': true,
-            }}
-            paint={{
-              'text-color': '#e2e8f0',
-            }}
-          />
-        </>
-      )}
-    </Map>
+            <Layer
+              id={EDGES_SELECTED_LAYER_ID}
+              type="line"
+              source={EDGES_SOURCE_ID}
+              filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
+              paint={{
+                'line-width': 8,
+                'line-color': '#f8fafc',
+                'line-opacity': 0.35,
+              }}
+            />
+            <Layer
+              id={EDGES_LAYER_ID}
+              type="line"
+              source={EDGES_SOURCE_ID}
+              paint={{
+                'line-width': 4,
+                'line-color': [
+                  'match',
+                  ['get', 'count_state'],
+                  'full',
+                  '#22c55e',
+                  'partial',
+                  '#eab308',
+                  '#64748b',
+                ],
+              }}
+            />
+            <Layer
+              id={EDGES_LEFT_LAYER_ID}
+              type="line"
+              source={EDGES_SOURCE_ID}
+              paint={{
+                'line-width': edgeSideLineWidth('left', sideLineArgs),
+                'line-offset': -EDGE_SIDE_LINE_OFFSET,
+                'line-color': EDGE_SIDE_LINE_COLOR.left,
+                'line-opacity': 0.85,
+              }}
+            />
+            <Layer
+              id={EDGES_RIGHT_LAYER_ID}
+              type="line"
+              source={EDGES_SOURCE_ID}
+              paint={{
+                'line-width': edgeSideLineWidth('right', sideLineArgs),
+                'line-offset': EDGE_SIDE_LINE_OFFSET,
+                'line-color': EDGE_SIDE_LINE_COLOR.right,
+                'line-opacity': 0.85,
+              }}
+            />
+            <Layer
+              id={EDGES_ARROWS_LAYER_ID}
+              type="symbol"
+              source={EDGES_SOURCE_ID}
+              layout={{
+                'symbol-placement': 'line',
+                'symbol-spacing': 80,
+                'text-field': '▶',
+                'text-size': 12,
+                'text-keep-upright': false,
+                'text-rotation-alignment': 'map',
+                'text-allow-overlap': true,
+              }}
+              paint={{
+                'text-color': '#e2e8f0',
+              }}
+            />
+          </>
+        )}
+      </Map>
+      <ParkingsLayerToggle parkings={parkings} />
+    </div>
+  )
+}
+
+function ParkingsLayerToggle({ parkings }: { parkings: boolean }) {
+  const navigate = useNavigate({ from: Route.fullPath })
+
+  return (
+    <div className="absolute top-3 right-3 z-10">
+      <Tooltip text="Blendet die von TILDA kartierten Parkstände auf der Karte ein. Orientierung beim Zählen, nicht die Zählgrundlage.">
+        <button
+          type="button"
+          aria-pressed={parkings}
+          aria-label="TILDA-Parkraum als Kontext"
+          className={cn(
+            'rounded-lg px-3 py-2 text-xs font-medium shadow-lg ring-1',
+            parkings
+              ? 'bg-amber-500 text-zinc-950 ring-amber-300'
+              : 'bg-zinc-900/90 text-white ring-white/10 hover:bg-zinc-800',
+          )}
+          onClick={() =>
+            void navigate({
+              search: (previous) => ({ ...previous, parkings: !parkings }),
+              replace: true,
+            })
+          }
+        >
+          TILDA-Parkraum
+        </button>
+      </Tooltip>
+    </div>
   )
 }

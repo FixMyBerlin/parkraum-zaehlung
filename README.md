@@ -35,17 +35,17 @@ Writes to the Zähl-Datenbank require a logged-in OSM user (`Authorization: Bear
 
 ## Storage
 
-Kanten liegen als Datei in deinem Browser. Zählungen liegen in der gemeinsamen Zähl-Datenbank. Beide gehören über den Datensatz-Namen und die Kanten-IDs zusammen.
+Kanten liegen als Datei in deinem Browser. Zählungen liegen in der gemeinsamen Zähl-Datenbank. Beide gehören über den Projektnamen und die Kanten-IDs zusammen.
 
-- **Zähl-Datenbank (counts):** production Cloudflare Worker at `https://key-value-store.fixmycity.workers.dev` (`kvBaseUrl` / `kvProject` / `kvApiKey` in `app.const.ts`). **Reads are public** (no OSM token). **Writes send the OSM Bearer token.** The SPA uses a vendored `@kv/client` from [key-value-db](https://github.com/FixMyBerlin/key-value-db) (`src/shared/kv-client/`). Worker project `parkraum-zaehlung` is the app tenant; each campaign is a **dataset name** used as entry id prefix and tag. The name cannot be renamed later without rewriting every count.
-- **Edges:** IndexedDB (`idb-keyval`), never uploaded. Keep the GeoJSON file (or host it and use `?edges=`) so you can re-match counts on another browser. Re-import under the same name replaces the local snapshot; if edge ids changed, the UI warns how many counts would no longer match.
+- **Zähl-Datenbank (counts):** production Cloudflare Worker at `https://key-value-store.fixmycity.workers.dev` (`kvBaseUrl` / `kvProject` / `kvApiKey` in `app.const.ts`). **Reads are public** (no OSM token). **Writes send the OSM Bearer token.** The SPA uses a vendored `@kv/client` from [key-value-db](https://github.com/FixMyBerlin/key-value-db) (`src/shared/kv-client/`). Worker project `parkraum-zaehlung` is the app tenant; each campaign is a **project slug** used as entry id prefix and tag. The slug cannot be renamed later without rewriting every count. Use a stable name without dates (e.g. `loerrach`), not a month stamp.
+- **Edges:** IndexedDB (`idb-keyval`), never uploaded. Keep the GeoJSON file so you can re-match counts on another browser. Import is file-picker only. Re-import under the same name replaces the local snapshot; if edge ids changed, the UI warns how many counts would no longer match.
 - **Exports:** JSON of counts only (also when no edges are loaded). GeoJSON of edges + counts when a file is present (`count_status`: counted / uncounted / orphan with `geometry: null`). **Alle Zählungen exportieren** dumps every dataset from the database.
 
 ## Contracts
 
 ### Edges GeoJSON v1
 
-`FeatureCollection` of `LineString`s. `metadata.dataset` is a suggestion; the UI always asks you to confirm a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, 3–60 chars), e.g. `loerrach-2026-09`. Import skips `geometry: null` features (orphans from a previous GeoJSON export).
+`FeatureCollection` of `LineString`s. `metadata.dataset` is a suggestion; the UI always asks you to confirm a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, 3–60 chars), e.g. `loerrach`. Import skips `geometry: null` features (orphans from a previous GeoJSON export).
 
 Properties: `id`, `name`, `highway`, `road`, `way_ids`, `way_reversed`, `start_node`, `end_node`, `length`, `azimuth`, `capacity_left`, `capacity_right`, `parking_left`, `parking_right`.
 

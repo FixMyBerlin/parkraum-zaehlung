@@ -34,7 +34,7 @@ const edges = {
 describe('resolveStep', () => {
   it('uses an explicit step when set', () => {
     expect(resolveStep({ step: 'export', dataset: 'x' })).toBe('export')
-    expect(resolveStep({ step: 'login' })).toBe('login')
+    expect(resolveStep({ step: 'dataset' })).toBe('dataset')
   })
 
   it('defaults to count when a dataset is set', () => {
@@ -47,12 +47,6 @@ describe('resolveStep', () => {
 })
 
 describe('stepDescription', () => {
-  it('describes login', () => {
-    expect(stepDescription({ step: 'login' })).toBe('Nicht angemeldet')
-    expect(stepDescription({ step: 'login', authenticated: true })).toBe('Angemeldet')
-    expect(stepDescription({ step: 'login', displayName: 'Ada' })).toBe('Ada')
-  })
-
   it('describes dataset', () => {
     expect(stepDescription({ step: 'dataset' })).toBe('Kein Datensatz')
     expect(stepDescription({ step: 'dataset', dataset: 'loerrach' })).toBe('loerrach')

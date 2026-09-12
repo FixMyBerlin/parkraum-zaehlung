@@ -2,15 +2,14 @@ import { InformationCircleIcon } from '@heroicons/react/20/solid'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MotionCollapse } from '@/components/shared/motion/MotionCollapse'
-import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
-import { Checkbox, CheckboxField } from '@/components/ui/checkbox'
 import { Field, Fieldset, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
+import { SidebarDivider } from '@/components/ui/sidebar'
 import { Code, Text, TextLink } from '@/components/ui/text'
 import { sampleEdgesGithubUrl } from '@/config/app.const'
 import {
@@ -31,8 +30,8 @@ const filePickerLabelClassName =
 const infoIconButtonClassName =
   'rounded-full text-zinc-400 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500'
 
-const datasetNameHelp =
-  'Der Name ist der Schlüssel für alle Zählungen und kann später nicht geändert werden. Empfehlung: <ort>-<jahr>-<monat>, z. B. loerrach-2026-09. Gleicher Name = gleiche Kampagne, auch wenn du die Kanten-Datei später neu hochlädst.'
+const projectNameHelp =
+  'Der Projektname ist der Schlüssel für alle Zählungen dieses Kartierprojekts und kann später nicht geändert werden. Empfehlung: ein kurzer Slug ohne Datum, z. B. loerrach. Gleicher Name = gleiches Projekt, auch wenn du die Kanten später neu hochlädst.'
 
 async function confirmReplaceIfIdsChanged(dataset: string, collection: CountingEdgesGeoJSON) {
   const existing = await loadDataset(dataset)
@@ -50,8 +49,6 @@ export function DatasetPanel() {
   const queryClient = useQueryClient()
   const navigate = useNavigate({ from: Route.fullPath })
   const dataset = Route.useSearch({ select: (search) => search.dataset })
-  const parkings = Route.useSearch({ select: (search) => search.parkings })
-  const edgesUrl = Route.useSearch({ select: (search) => search.edges })
   const datasetsQuery = useQuery({
     queryKey: ['datasets'],
     queryFn: listDatasets,
@@ -78,13 +75,14 @@ export function DatasetPanel() {
   const [pendingName, setPendingName] = useState('')
   const [pendingText, setPendingText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [importHelpOpen, setImportHelpOpen] = useState(true)
+  const [projectNameHelpOpen, setProjectNameHelpOpen] = useState(false)
+  const [importHelpOpen, setImportHelpOpen] = useState(false)
 
   const { mutate: importEdges, isPending: importPending } = useMutation({
     mutationFn: async ({ text, name }: { text: string; name: string }) => {
       if (!isValidDatasetName(name)) {
         throw new Error(
-          'Datensatzname: 3–60 Zeichen, nur Kleinbuchstaben, Ziffern und Bindestriche (z. B. loerrach-2026-09).',
+          'Projektname: 3–60 Zeichen, nur Kleinbuchstaben, Ziffern und Bindestriche (z. B. loerrach).',
         )
       }
       const parsed = parseEdgesText(text, name)
@@ -119,9 +117,8 @@ export function DatasetPanel() {
       const parsed = parseEdgesText(text)
       const suggested = parsed.dataset
       setPendingText(text)
-      if (suggested) setPendingName(suggested)
+      setPendingName(suggested)
       setError(null)
-      setImportHelpOpen(true)
     } catch (caught: unknown) {
       setPendingText(null)
       setError(caught instanceof Error ? caught.message : 'Import fehlgeschlagen')
@@ -132,159 +129,18 @@ export function DatasetPanel() {
     stageFileText(await file.text())
   }
 
-  useEffect(
-    function stageEdgesFromSearchUrl() {
-      if (!edgesUrl || dataset) return
-      let cancelled = false
-      void fetch(edgesUrl)
-        .then((response) => {
-          if (!response.ok) throw new Error(`Kanten-URL nicht lesbar (${response.status})`)
-          return response.text()
-        })
-        .then((text) => {
-          if (cancelled) return
-          try {
-            const parsed = parseEdgesText(text)
-            setPendingText(text)
-            if (parsed.dataset) setPendingName(parsed.dataset)
-            setError(null)
-            setImportHelpOpen(true)
-          } catch (caught: unknown) {
-            setPendingText(null)
-            setError(caught instanceof Error ? caught.message : 'Import fehlgeschlagen')
-          }
-        })
-        .catch((caught: unknown) => {
-          if (!cancelled) {
-            setError(caught instanceof Error ? caught.message : 'Kanten-URL fehlgeschlagen')
-          }
-        })
-      return () => {
-        cancelled = true
-      }
-    },
-    [edgesUrl, dataset],
-  )
-
   return (
-    <section className="space-y-4">
-      {dataset && selectedRow && !selectedRow.local ? (
-        <Callout title="Nur in der Zähl-Datenbank">
-          {selectedRow.remoteEntryCount} Zählungen unter {dataset}. Kanten-Datei importieren, um zu
-          zählen. JSON-Export der Zählungen ist oben möglich.
-        </Callout>
-      ) : null}
+    <section>
       <Fieldset>
-        <div className="flex items-center gap-1.5">
-          <Subheading>Kanten importieren</Subheading>
-          <button
-            type="button"
-            className={infoIconButtonClassName}
-            aria-expanded={importHelpOpen}
-            aria-controls="import-help"
-            aria-label="Hinweise zum Kantenimport"
-            onClick={() => setImportHelpOpen((open) => !open)}
-          >
-            <InformationCircleIcon className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-        <MotionCollapse open={importHelpOpen}>
-          <div id="import-help" className="space-y-2 pt-2">
-            <Text>
-              Kanten liegen als Datei in deinem Browser. Zählungen liegen in der gemeinsamen
-              Zähl-Datenbank. Beide gehören über den Datensatz-Namen und die Kanten-IDs zusammen.
-            </Text>
-            <Text>
-              Die App lädt diese Datei nicht hoch. Bewahre sie auf (oder lege sie unter einer URL ab
-              und nutze <Code>edges</Code> in der Adresse), damit du oder andere die Zählungen
-              später wieder den Kanten zuordnen können. Der GeoJSON-Export enthält die Kanten und
-              kann wieder importiert werden.
-            </Text>
-            <Text>
-              Die Datei kommt aus TILDA: Region → Export → Straßenkanten (
-              <Code>parkings_edges</Code>) als GeoJSON-FeatureCollection (v1).
-            </Text>
-            <Text>
-              <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
-                Testdaten herunterladen (dann hochladen)
-              </TextLink>
-            </Text>
-            <Text>{datasetNameHelp}</Text>
-          </div>
-        </MotionCollapse>
-        <Field className="mt-4">
-          <Label>Datensatzname</Label>
-          <Input
-            value={pendingName}
-            onChange={(event) => setPendingName(event.target.value.trim().toLowerCase())}
-            placeholder="loerrach-2026-09"
-            data-testid="dataset-name-input"
-            autoComplete="off"
-          />
-        </Field>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <label className={filePickerLabelClassName}>
-            Datei wählen
-            <input
-              type="file"
-              accept=".geojson,application/geo+json,application/json"
-              className="sr-only"
-              data-testid="edges-file-input"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) void importFromFile(file)
-              }}
-            />
-          </label>
-          <Button
-            type="button"
-            color="sky"
-            data-testid="import-dataset"
-            disabled={!pendingText || importPending}
-            onClick={() => {
-              if (!pendingText) return
-              importEdges({ text: pendingText, name: pendingName })
-            }}
-          >
-            Importieren
-          </Button>
-        </div>
-        {pendingText ? (
-          <Text className="mt-2">Datei gelesen. Namen prüfen und Importieren klicken.</Text>
-        ) : null}
-        {error ? (
-          <Callout className="mt-4" tone="error">
-            {error}
+        <Subheading>Bestehendes Projekt wählen</Subheading>
+        {dataset && selectedRow && !selectedRow.local ? (
+          <Callout className="mt-3" title="Nur in der Zähl-Datenbank">
+            {selectedRow.remoteEntryCount} Zählungen unter {dataset}. Kanten importieren, um zu
+            zählen. Export ist im Schritt Export.
           </Callout>
         ) : null}
-      </Fieldset>
-      <CheckboxField>
-        <Checkbox
-          checked={parkings}
-          onChange={(checked) =>
-            void navigate({
-              search: (previous) => ({ ...previous, parkings: checked }),
-              replace: true,
-            })
-          }
-        />
-        <div data-slot="label" className="flex items-center gap-1.5">
-          <Label>TILDA-Parkraum als Kontext</Label>
-          <Tooltip text="Blendet die von TILDA kartierten Parkstände auf der Karte ein. So siehst du beim Zählen, wo laut TILDA Parkraum liegt — als Orientierung, nicht als Zählgrundlage.">
-            <button
-              type="button"
-              className={infoIconButtonClassName}
-              aria-label="Erklärung zu TILDA-Parkraum als Kontext"
-            >
-              <InformationCircleIcon className="size-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-        </div>
-      </CheckboxField>
-      {inventory.length > 0 ? (
-        <Fieldset>
-          <Subheading>Datensätze</Subheading>
-          <ul className="mt-2 space-y-1" data-testid="dataset-inventory">
+        {inventory.length > 0 ? (
+          <ul className="mt-3 space-y-1" data-testid="dataset-inventory">
             {inventory.map((row) => {
               const selected = row.dataset === dataset
               return (
@@ -326,8 +182,114 @@ export function DatasetPanel() {
               )
             })}
           </ul>
-        </Fieldset>
-      ) : null}
+        ) : (
+          <Text className="mt-3">Noch kein Projekt in diesem Browser oder der Zähl-Datenbank.</Text>
+        )}
+      </Fieldset>
+      <SidebarDivider />
+      <Fieldset>
+        <Subheading>Neues Projekt anlegen</Subheading>
+        <Field className="mt-4">
+          <div className="flex items-center gap-1.5">
+            <Label>Projektname</Label>
+            <button
+              type="button"
+              className={infoIconButtonClassName}
+              aria-expanded={projectNameHelpOpen}
+              aria-controls="project-name-help"
+              aria-label="Erklärung zum Projektnamen"
+              onClick={() => setProjectNameHelpOpen((open) => !open)}
+            >
+              <InformationCircleIcon className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+          <MotionCollapse open={projectNameHelpOpen}>
+            <div id="project-name-help" className="pt-2">
+              <Text>{projectNameHelp}</Text>
+            </div>
+          </MotionCollapse>
+          <Input
+            value={pendingName}
+            onChange={(event) => setPendingName(event.target.value.trim().toLowerCase())}
+            placeholder="loerrach"
+            data-testid="dataset-name-input"
+            autoComplete="off"
+            className="mt-3"
+          />
+        </Field>
+        <div className="mt-6">
+          <div className="flex items-center gap-1.5">
+            <Subheading level={3}>Kanten importieren</Subheading>
+            <button
+              type="button"
+              className={infoIconButtonClassName}
+              aria-expanded={importHelpOpen}
+              aria-controls="import-help"
+              aria-label="Hinweise zum Kantenimport"
+              onClick={() => setImportHelpOpen((open) => !open)}
+            >
+              <InformationCircleIcon className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+          <MotionCollapse open={importHelpOpen}>
+            <div id="import-help" className="space-y-2 pt-2">
+              <Text>
+                Kanten bleiben in diesem Browser. Zählungen liegen in der gemeinsamen
+                Zähl-Datenbank. Sie gehören über den Projektnamen und die Kanten-IDs zusammen.
+              </Text>
+              <Text>
+                Die App lädt die Kanten nicht auf einen Server. Bewahre die Kanten-Datei auf, damit
+                du oder andere die Zählungen später wieder den Kanten zuordnen können. Der
+                GeoJSON-Export enthält die Kanten und kann wieder importiert werden.
+              </Text>
+              <Text>
+                Die Kanten kommen aus TILDA: Region → Export → Straßenkanten (
+                <Code>parkings_edges</Code>) als GeoJSON-FeatureCollection (v1).
+              </Text>
+              <Text>
+                <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
+                  Testdaten herunterladen (dann hochladen)
+                </TextLink>
+              </Text>
+            </div>
+          </MotionCollapse>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <label className={filePickerLabelClassName}>
+              Datei wählen
+              <input
+                type="file"
+                accept=".geojson,application/geo+json,application/json"
+                className="sr-only"
+                data-testid="edges-file-input"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) void importFromFile(file)
+                }}
+              />
+            </label>
+            <Button
+              type="button"
+              color="sky"
+              data-testid="import-dataset"
+              disabled={!pendingText || importPending}
+              onClick={() => {
+                if (!pendingText) return
+                importEdges({ text: pendingText, name: pendingName })
+              }}
+            >
+              Importieren
+            </Button>
+          </div>
+          {pendingText ? (
+            <Text className="mt-2">Datei gelesen. Projektname prüfen und Importieren klicken.</Text>
+          ) : null}
+          {error ? (
+            <Callout className="mt-4" tone="error">
+              {error}
+            </Callout>
+          ) : null}
+        </div>
+      </Fieldset>
     </section>
   )
 }

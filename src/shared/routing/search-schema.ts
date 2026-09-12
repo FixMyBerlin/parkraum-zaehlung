@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { loerrachMapFallback } from '@/config/app.const'
 import { parseMapParam, serializeMapParam, type MapParam } from '@/shared/map/map-param'
+import type { AppStep } from '@/shared/routing/app-step'
 
 const mapParamFallback: MapParam = loerrachMapFallback
 
@@ -38,10 +39,14 @@ export const indexSearchSchema = z.object({
     .transform((value) => serializeMapParam(value)),
   dataset: optionalTrimmedSearchString,
   edge: optionalTrimmedSearchString,
-  edges: optionalTrimmedSearchString,
   uncounted: optionalFlag.catch(false),
   parkings: optionalFlag.catch(false),
-  step: z.enum(['login', 'dataset', 'count', 'export']).optional(),
+  step: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value): AppStep | undefined =>
+      value === 'dataset' || value === 'count' || value === 'export' ? value : undefined,
+    ),
 })
 
 export type IndexSearch = z.infer<typeof indexSearchSchema>

@@ -1,12 +1,21 @@
 import { MapProvider } from 'react-map-gl/maplibre'
+import { AppHeader } from '@/components/AppHeader'
 import { CountingMap } from '@/components/CountingMap'
 import { AppSidebar } from '@/components/Sidebar'
 import { SidebarLayout } from '@/components/SidebarLayout'
+import { useAppStepNav } from '@/features/layout/use-app-step-nav'
 
 export function AppShell() {
+  const { steps, goToStep } = useAppStepNav()
+
   return (
     <MapProvider>
-      <SidebarLayout sidebar={<AppSidebar />}>
+      <SidebarLayout
+        header={({ onOpenSidebar }) => (
+          <AppHeader steps={steps} onSelect={goToStep} onOpenSidebar={onOpenSidebar} />
+        )}
+        sidebar={<AppSidebar />}
+      >
         <CountingMap />
       </SidebarLayout>
     </MapProvider>
