@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { StepNavItem } from '@/components/StepNav'
 import { countsQueryKey, countStore } from '@/features/counts/counts-query'
-import { Route } from '@/routes/index'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import {
   appStepLabels,
@@ -14,10 +13,13 @@ import {
 } from '@/shared/routing/app-step'
 
 export function useAppStepNav() {
-  const navigate = useNavigate({ from: Route.fullPath })
-  const search = Route.useSearch({ select: (s) => ({ dataset: s.dataset, step: s.step }) })
-  const dataset = search.dataset
-  const current = resolveStep(search)
+  const navigate = useNavigate()
+  const indexMatch = useMatch({ from: '/', shouldThrow: false })
+  const isDataPage = useRouterState({
+    select: (state) => state.location.pathname === '/data',
+  })
+  const dataset = indexMatch?.search.dataset
+  const current = isDataPage ? undefined : resolveStep(indexMatch?.search ?? {})
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
@@ -53,10 +55,21 @@ export function useAppStepNav() {
 
   function goToStep(id: AppStep) {
     void navigate({
-      search: (previous) => ({ ...previous, step: id }),
-      replace: true,
+      to: '/',
+      search: indexMatch ? { ...indexMatch.search, step: id } : { step: id },
+      replace: !isDataPage,
     })
   }
 
-  return { dataset, current, edges, records, remoteCount, hasLocalEdges, steps, goToStep }
+  return {
+    dataset,
+    current,
+    edges,
+    records,
+    remoteCount,
+    hasLocalEdges,
+    steps,
+    goToStep,
+    isDataPage,
+  }
 }

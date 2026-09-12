@@ -157,4 +157,29 @@ test.describe('counting flow', () => {
     const download = await downloadPromise
     expect(download.suggestedFilename()).toMatch(/^counts-loerrach-sample-.*\.json$/)
   })
+
+  test('opens the count database page and edits a row', async ({ page }) => {
+    await page.goto('/')
+    await page
+      .getByTestId('edges-file-input')
+      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await page.getByTestId('import-dataset').click()
+    await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+    await page.getByTestId('left-pkw').fill('7')
+    await page.getByTestId('left-motorrad').fill('1')
+    await page.getByTestId('right-pkw').fill('5')
+    await page.getByTestId('save-count').click()
+    await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+
+    await page.getByRole('link', { name: 'Zähl-Datenbank' }).click()
+    await expect(page.getByRole('heading', { name: 'Zähl-Datenbank', exact: true })).toBeVisible()
+    const row = page.getByTestId('admin-row-loerrach-sample-ce-basler-nord')
+    await expect(row).toContainText('7')
+    await row.click()
+    await page.getByTestId('admin-left-pkw').fill('9')
+    await page.getByTestId('admin-save-count').click()
+    await expect(row).toContainText('9')
+  })
 })

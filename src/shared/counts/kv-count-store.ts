@@ -1,5 +1,5 @@
 import { KvError, type KvClient } from '@/shared/kv-client'
-import { newerWins, type CountStore } from './count-store'
+import { newerWins, type CountStore, type CountStoreEntry } from './count-store'
 import { countRecordSchema, type CountRecord } from './schema'
 
 export const osmLoginRequiredMessage = 'Zum Speichern mit OSM anmelden'
@@ -77,6 +77,28 @@ export function createKvCountStore(client: KvClient<CountRecord>): CountStore {
       return tags
         .map(({ tag, count }) => ({ dataset: tag, entryCount: count }))
         .sort((a, b) => a.dataset.localeCompare(b.dataset))
+    },
+    async listAll() {
+      const entries: CountStoreEntry[] = []
+      let cursor: string | undefined
+      do {
+        const page = await client.list({
+          limit: 500,
+          cursor,
+        })
+        for (const item of page.items) {
+          const slashIndex = item.id.indexOf('/')
+          if (slashIndex <= 0) continue
+          const dataset = item.id.slice(0, slashIndex)
+          const edgeId = item.id.slice(slashIndex + 1)
+          if (!dataset || !edgeId) continue
+          const record = countRecordSchema.safeParse(item.data)
+          if (!record.success) continue
+          entries.push({ dataset, edgeId, record: record.data })
+        }
+        cursor = page.next_cursor ?? undefined
+      } while (cursor)
+      return entries
     },
   }
 }

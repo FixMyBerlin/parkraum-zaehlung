@@ -49,7 +49,14 @@ export const indexSearchSchema = z.object({
     ),
 })
 
+export const dataSearchSchema = z.object({
+  dataset: optionalTrimmedSearchString,
+  edge: optionalTrimmedSearchString,
+  q: optionalTrimmedSearchString,
+})
+
 export type IndexSearch = z.infer<typeof indexSearchSchema>
+export type DataSearch = z.infer<typeof dataSearchSchema>
 
 export function searchMapParam(search: Pick<IndexSearch, 'map'>): MapParam {
   return parseMapParam(search.map) ?? mapParamFallback

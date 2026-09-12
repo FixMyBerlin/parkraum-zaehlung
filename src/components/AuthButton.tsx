@@ -15,13 +15,11 @@ export function AuthButton() {
 
   if (auth.authenticated) {
     const displayName = auth.displayName ?? 'OSM'
+    const label = `Abmelden (${displayName})`
     return (
-      <div className="flex items-center gap-2">
-        <p className="max-w-36 truncate text-sm/5 font-medium text-white">{displayName}</p>
-        <Button outline onClick={auth.logout}>
-          Abmelden
-        </Button>
-      </div>
+      <Button outline onClick={auth.logout} title={label} aria-label={label}>
+        Abmelden
+      </Button>
     )
   }
 

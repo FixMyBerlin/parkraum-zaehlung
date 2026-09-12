@@ -65,7 +65,7 @@ export function stepDescription({
 
 type StepStatusArgs = {
   step: AppStep
-  current: AppStep
+  current?: AppStep
   dataset?: string
 }
 
@@ -74,7 +74,7 @@ export function stepStatus({
   current,
   dataset,
 }: StepStatusArgs): 'complete' | 'current' | 'upcoming' {
-  if (step === current) return 'current'
+  if (current && step === current) return 'current'
   if (step === 'dataset') return dataset ? 'complete' : 'upcoming'
   return 'upcoming'
 }

@@ -8,11 +8,17 @@ import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
-import { countsQueryKey, countStore } from '@/features/counts/counts-query'
+import {
+  allCountsQueryKey,
+  countsQueryKey,
+  countStore,
+  datasetSummariesQueryKey,
+} from '@/features/counts/counts-query'
 import { useOsmAuth } from '@/features/osm/use-osm-auth'
 import { Route } from '@/routes/index'
+import { countRecordFromFormData } from '@/shared/counts/count-from-form'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
-import { type CountRecord, type SideCount } from '@/shared/counts/schema'
+import { type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
 export function EditPanel() {
@@ -47,6 +53,8 @@ export function EditPanel() {
     onSuccess: async () => {
       if (!dataset) return
       await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
+      await queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
+      await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
     },
   })
   const clearMutation = useMutation({
@@ -58,6 +66,8 @@ export function EditPanel() {
     onSuccess: async () => {
       if (!dataset) return
       await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
+      await queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
+      await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
     },
   })
 
@@ -80,16 +90,7 @@ export function EditPanel() {
   }
 
   function saveFromForm(form: HTMLFormElement) {
-    const data = new FormData(form)
-    const noteValue = data.get('note')
-    const record: CountRecord = {
-      left: readSide(data, 'left'),
-      right: readSide(data, 'right'),
-      note: typeof noteValue === 'string' && noteValue ? noteValue : undefined,
-      updated_at: new Date().toISOString(),
-      updated_by: auth.displayName,
-    }
-    saveMutation.mutate(record)
+    saveMutation.mutate(countRecordFromFormData(new FormData(form), auth.displayName))
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -195,18 +196,4 @@ export function EditPanel() {
       </form>
     </section>
   )
-}
-
-function readSide(form: FormData, side: 'left' | 'right'): SideCount {
-  const read = (key: keyof SideCount) => {
-    const raw = form.get(`${side}_${key}`)
-    if (raw == null || raw === '') return null
-    const parsed = Number(raw)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return {
-    pkw: read('pkw'),
-    motorrad: read('motorrad'),
-    lkw_bus: read('lkw_bus'),
-  }
 }

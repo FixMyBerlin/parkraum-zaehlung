@@ -155,3 +155,80 @@ test('listDatasetSummaries maps GET /tags and sorts by dataset name', async () =
     { dataset: 'zeta', entryCount: 2 },
   ])
 })
+
+test('listAll paginates with no tag query until next_cursor is null', async () => {
+  const first = emptyCountRecord('2026-09-01T00:00:00.000Z')
+  const second = emptyCountRecord('2026-09-02T00:00:00.000Z')
+  const fetchMock = vi.fn()
+  vi.stubGlobal('fetch', fetchMock)
+  fetchMock
+    .mockResolvedValueOnce(
+      jsonResponse(200, {
+        items: [kvEntry('alpha/edge-a', first, ['alpha'])],
+        next_cursor: 'page-2',
+      }),
+    )
+    .mockResolvedValueOnce(
+      jsonResponse(200, {
+        items: [kvEntry('beta/edge-b', second, ['beta'])],
+        next_cursor: null,
+      }),
+    )
+
+  const store = createKvCountStore(testClient())
+  const entries = await store.listAll()
+
+  expect(entries).toEqual([
+    { dataset: 'alpha', edgeId: 'edge-a', record: first },
+    { dataset: 'beta', edgeId: 'edge-b', record: second },
+  ])
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+
+  const firstUrl = new URL(readUrl(fetchMock.mock.calls[0]))
+  expect(firstUrl.origin + firstUrl.pathname).toBe(
+    'https://kv.example/v1/projects/parkraum-zaehlung/entries',
+  )
+  expect(firstUrl.searchParams.has('tag')).toBe(false)
+  expect(firstUrl.searchParams.get('limit')).toBe('500')
+  expect(firstUrl.searchParams.has('cursor')).toBe(false)
+
+  const secondUrl = new URL(readUrl(fetchMock.mock.calls[1]))
+  expect(secondUrl.searchParams.has('tag')).toBe(false)
+  expect(secondUrl.searchParams.get('cursor')).toBe('page-2')
+})
+
+test('listAll skips invalid payloads and ids without a slash', async () => {
+  const valid = emptyCountRecord('2026-09-01T00:00:00.000Z')
+  const fetchMock = vi.fn().mockResolvedValue(
+    jsonResponse(200, {
+      items: [
+        kvEntry('alpha/edge-a', valid, ['alpha']),
+        kvEntry('alpha/edge-bad', { not: 'a record' } as unknown as CountRecord, ['alpha']),
+        kvEntry('noslash', valid, ['alpha']),
+      ],
+      next_cursor: null,
+    }),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+
+  const store = createKvCountStore(testClient())
+  const entries = await store.listAll()
+
+  expect(entries).toEqual([{ dataset: 'alpha', edgeId: 'edge-a', record: valid }])
+})
+
+test('listAll splits on the first slash only', async () => {
+  const record = emptyCountRecord('2026-09-01T00:00:00.000Z')
+  const fetchMock = vi.fn().mockResolvedValue(
+    jsonResponse(200, {
+      items: [kvEntry('alpha/edge/with/slash', record, ['alpha'])],
+      next_cursor: null,
+    }),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+
+  const store = createKvCountStore(testClient())
+  const entries = await store.listAll()
+
+  expect(entries).toEqual([{ dataset: 'alpha', edgeId: 'edge/with/slash', record }])
+})

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { routerSearch } from '@/shared/routing/router-search'
-import { indexSearchSchema } from '@/shared/routing/search-schema'
+import { dataSearchSchema, indexSearchSchema } from '@/shared/routing/search-schema'
 
 function roundTrip(search: Record<string, unknown>) {
   return indexSearchSchema.parse(routerSearch.parse(routerSearch.stringify(search)))
@@ -34,5 +34,22 @@ describe('routerSearch', () => {
 
   it('drops the former login step from the URL', () => {
     expect(roundTrip({ step: 'login' }).step).toBeUndefined()
+  })
+})
+
+describe('dataSearchSchema', () => {
+  it('round-trips dataset, edge, and q', () => {
+    const search = dataSearchSchema.parse(
+      routerSearch.parse(routerSearch.stringify({ dataset: '2026', edge: '12345', q: 'note' })),
+    )
+    expect(search).toEqual({ dataset: '2026', edge: '12345', q: 'note' })
+  })
+
+  it('drops empty strings', () => {
+    expect(dataSearchSchema.parse({ dataset: '  ', edge: '', q: undefined })).toEqual({
+      dataset: undefined,
+      edge: undefined,
+      q: undefined,
+    })
   })
 })
