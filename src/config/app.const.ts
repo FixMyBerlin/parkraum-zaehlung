@@ -1,4 +1,4 @@
-/** Public app config. None of these is a secret — no `.env` files. */
+/** Public app config: none of these is a secret, so there's no `.env` file. */
 
 export const OSM_OAUTH_LAND_FILENAME = 'osm-oauth-land.html'
 export const OSM_AUTH_RETURN_URL_KEY = '__osmAuthReturnUrl'
@@ -8,7 +8,7 @@ export const OSM_AUTH_RETURN_URL_KEY = '__osmAuthReturnUrl'
  * Redirect URIs:
  * - `http://127.0.0.1:33478/osm-oauth-land.html`
  * - `https://fixmyberlin.github.io/parkraum-zaehlung/osm-oauth-land.html`
- * Scope: `read_prefs`. Public client id only — never a client secret.
+ * Scope: `read_prefs`. Public client id only, never a client secret.
  */
 export const osmClientId = 'j4p1-aU0G5a8JiWPMlTBaZhGMN-N-RHTEuO2qdSdyh8'
 

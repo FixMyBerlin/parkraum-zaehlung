@@ -20,7 +20,7 @@ const optionalFlag = z
 /**
  * `parseSearch` JSON-parses every value, so an all-digit param (`?edge=12345`,
  * a numeric dataset slug) arrives as a number. Coerce it back before the string
- * checks — see `tanstack-router-conventions/router-search-serialization.md`.
+ * checks. See `tanstack-router-conventions/router-search-serialization.md`.
  */
 const optionalSearchString = z
   .union([z.string(), z.number()])

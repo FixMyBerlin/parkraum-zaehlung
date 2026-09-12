@@ -16,9 +16,9 @@ import { emptyCountRecord, type MatchStatus } from './schema'
 const UPDATED_AT = '2026-09-08T00:00:00.000Z'
 const ORIGIN: [number, number] = [7.66, 47.61]
 const SEGMENT = 0.00008
-/** ~22 m of latitude — outside the 8 m match radius. */
+/** ~22 m of latitude, outside the 8 m match radius. */
 const OUTSIDE_SHIFT = 0.0002
-/** ~3 m of latitude — inside the 8 m match radius. */
+/** ~3 m of latitude, inside the 8 m match radius. */
 const INSIDE_SHIFT = 0.00003
 
 function edgeInput(id: string, shiftLat = 0): EdgeMatchInput {

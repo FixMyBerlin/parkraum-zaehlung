@@ -4,15 +4,14 @@ import type React from 'react'
 
 /**
  * Catalyst call sites only ever pass a plain string `href` (internal paths,
- * external URLs, `mailto:`, asset links) — never a typed TanStack `to` +
- * params/search. TanStack Router's `Link` accepts a plain (non-literal)
+ * external URLs, `mailto:`, asset links), never a typed TanStack `to` with
+ * params/search. TanStack Router's `Link` accepts a plain, non-literal
  * `string` for `to` as an escape hatch: it skips route-path validation but
- * still runs the same detection it uses for a literal `to` — same-tab clicks
- * on internal-looking paths get client-side navigation, while absolute
- * external URLs and non-`_self` targets fall through to normal browser
- * navigation untouched. This keeps the component honest: `href` still means
- * "any string", same as Catalyst's original contract, so no call site needs
- * to change.
+ * still runs the same detection as a literal `to`, so same-tab clicks on
+ * internal-looking paths get client-side navigation while absolute external
+ * URLs and non-`_self` targets fall through to normal browser navigation.
+ * `href` still means "any string", matching Catalyst's original contract, so
+ * no call site needs to change.
  */
 export function Link({
   ref,

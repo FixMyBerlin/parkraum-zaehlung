@@ -12,8 +12,8 @@ export type ParsedEdges = {
  * before the strict `edgesCollectionSchema.parse()` below runs. `.loose()`
  * (Zod 4's passthrough) keeps every other key untouched, and a feature or
  * geometry that doesn't even match the loose shape is treated the same as
- * one whose `geometry.type` isn't `'LineString'` — dropped, except a
- * non-object feature entry which is kept so the strict parse reports it.
+ * one whose `geometry.type` isn't `'LineString'`: dropped, except a
+ * non-object feature entry, which is kept so the strict parse reports it.
  */
 const rawFeatureCollectionSchema = z.object({ features: z.array(z.unknown()) }).loose()
 const looseFeatureSchema = z.object({ geometry: z.unknown().optional() }).loose()

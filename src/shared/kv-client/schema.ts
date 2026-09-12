@@ -3,11 +3,11 @@ import type { KvEntry, KvListResult, KvUser } from './types'
 
 /**
  * Envelope schemas for the KV Worker's responses. `data` is typed via the
- * caller's generic `T` but not runtime-checked here: each store already
- * validates its own payload shape (see `countRecordSchema.safeParse` in
- * `kv-count-store.ts`) and tolerates legacy/invalid records per entry. Making
- * this schema also enforce a payload shape would turn that per-entry
- * tolerance into a whole-request failure.
+ * caller's generic `T` but left unvalidated here: each store already
+ * validates its own payload (see `countRecordSchema.safeParse` in
+ * `kv-count-store.ts`) and tolerates invalid records per entry. Validating
+ * `data` here too would turn that per-entry tolerance into a whole-request
+ * failure.
  */
 export const kvUserSchema: z.ZodType<KvUser> = z.object({
   osm_uid: z.number(),
