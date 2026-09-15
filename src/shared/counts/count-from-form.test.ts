@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { countRecordFromFormData, readSideCount } from './count-from-form'
-import { emptyCountRecord } from './schema'
+import {
+  countRecordFromFormData,
+  isEmptyOccupancy,
+  readSideCount,
+  sameOccupancy,
+  type Occupancy,
+} from './count-from-form'
+import { emptyCountRecord, emptySideCount } from './schema'
 
 function formData(entries: Record<string, string>) {
   const data = new FormData()
@@ -75,5 +81,51 @@ describe('countRecordFromFormData', () => {
       motorrad: null,
       lkw_bus: null,
     })
+  })
+})
+
+function occupancy(overrides: Partial<Occupancy> = {}): Occupancy {
+  return {
+    left: emptySideCount(),
+    right: emptySideCount(),
+    note: undefined,
+    ...overrides,
+  }
+}
+
+describe('isEmptyOccupancy', () => {
+  it('is empty when both sides and the note are blank', () => {
+    expect(isEmptyOccupancy(occupancy())).toBe(true)
+    expect(isEmptyOccupancy(occupancy({ note: '' }))).toBe(true)
+  })
+
+  it('is not empty once a side has a count', () => {
+    expect(isEmptyOccupancy(occupancy({ left: { ...emptySideCount(), pkw: 0 } }))).toBe(false)
+  })
+
+  it('is not empty once a note is set', () => {
+    expect(isEmptyOccupancy(occupancy({ note: 'Baustelle' }))).toBe(false)
+  })
+})
+
+describe('sameOccupancy', () => {
+  it('treats an undefined note as equal to an empty string', () => {
+    expect(sameOccupancy(occupancy({ note: undefined }), occupancy({ note: '' }))).toBe(true)
+  })
+
+  it('ignores bookkeeping fields like updated_at/updated_by', () => {
+    const a = { ...occupancy(), updated_at: '2026-01-01T00:00:00.000Z', updated_by: 'a' }
+    const b = { ...occupancy(), updated_at: '2026-02-02T00:00:00.000Z', updated_by: 'b' }
+    expect(sameOccupancy(a, b)).toBe(true)
+  })
+
+  it('detects a changed side count', () => {
+    const a = occupancy({ left: { ...emptySideCount(), pkw: 1 } })
+    const b = occupancy({ left: { ...emptySideCount(), pkw: 2 } })
+    expect(sameOccupancy(a, b)).toBe(false)
+  })
+
+  it('detects a changed note', () => {
+    expect(sameOccupancy(occupancy({ note: 'a' }), occupancy({ note: 'b' }))).toBe(false)
   })
 })

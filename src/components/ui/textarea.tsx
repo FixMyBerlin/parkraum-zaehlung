@@ -5,12 +5,16 @@ import type React from 'react'
 export function Textarea({
   className,
   resizable = true,
+  autoGrow = false,
   ref,
   ...props
-}: { className?: string; resizable?: boolean; ref?: React.Ref<HTMLTextAreaElement> } & Omit<
-  Headless.TextareaProps,
-  'as' | 'className'
->) {
+}: {
+  className?: string
+  resizable?: boolean
+  /** Grows the textarea to fit its content (Tailwind `field-sizing-content`) instead of scrolling. */
+  autoGrow?: boolean
+  ref?: React.Ref<HTMLTextAreaElement>
+} & Omit<Headless.TextareaProps, 'as' | 'className'>) {
   return (
     <span
       data-slot="control"
@@ -48,6 +52,8 @@ export function Textarea({
           'disabled:border-zinc-950/20 dark:disabled:border-white/15 dark:disabled:bg-white/2.5 dark:data-hover:disabled:border-white/15',
           // Resizable
           resizable ? 'resize-y' : 'resize-none',
+          // Auto-grow to fit content instead of scrolling
+          autoGrow && 'field-sizing-content',
         ])}
       />
     </span>

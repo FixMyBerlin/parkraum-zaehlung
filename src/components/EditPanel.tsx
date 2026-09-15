@@ -1,16 +1,22 @@
+import { useAsyncDebouncer } from '@tanstack/react-pacer'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { type FormEvent, useId } from 'react'
+import { type FocusEvent, type FormEvent, useEffect, useId, useRef, useState } from 'react'
 import { CountGrid } from '@/components/CountGrid'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
-import { Input } from '@/components/ui/input'
 import { Text, TextLink } from '@/components/ui/text'
+import { Textarea } from '@/components/ui/textarea'
 import { Route } from '@/routes/index'
-import { countRecordFromFormData } from '@/shared/counts/count-from-form'
+import {
+  countRecordFromFormData,
+  isEmptyOccupancy,
+  sameOccupancy,
+  type Occupancy,
+} from '@/shared/counts/count-from-form'
 import {
   allCountsQueryKey,
   countsQueryKey,
@@ -22,12 +28,20 @@ import { originalIdForEdge, recordForEdge } from '@/shared/counts/match-counts'
 import { type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 
+type PendingSave = {
+  dataset: string
+  kvEdgeId: string
+  record: CountRecord
+  hadExistingRecord: boolean
+}
+
 export function EditPanel() {
   const queryClient = useQueryClient()
   const navigate = useNavigate({ from: Route.fullPath })
   const { dataset, edge: edgeId } = Route.useSearch()
   const auth = useOsmAuth()
   const formId = useId()
+  const [formResetCount, setFormResetCount] = useState(0)
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
@@ -47,17 +61,27 @@ export function EditPanel() {
   const saved = edgeId ? recordForEdge(records, edgeId) : undefined
   const kvEdgeId = edgeId ? (originalIdForEdge(records, edgeId) ?? edgeId) : undefined
 
+  // Last occupancy we attempted to send per edge, so unchanged input is skipped and a
+  // failed PUT is not retried in a loop (only new input tries again).
+  const lastSentRef = useRef<{ kvEdgeId: string; occupancy: Occupancy } | null>(null)
+  // Serializes writes: at most one PUT in flight, latest snapshot wins after it settles.
+  const savingRef = useRef(false)
+  const queuedRef = useRef<PendingSave | null>(null)
+
   const saveMutation = useMutation({
-    mutationFn: async (record: CountRecord) => {
-      if (!dataset || !kvEdgeId) throw new Error('missing')
-      if (!auth.authenticated) throw new Error(osmLoginRequiredMessage)
-      return countStore.put(dataset, kvEdgeId, record)
-    },
-    onSuccess: async () => {
-      if (!dataset) return
-      await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
-      await queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
-      await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
+    mutationFn: async (pending: PendingSave) =>
+      countStore.put(pending.dataset, pending.kvEdgeId, pending.record),
+    onSuccess: (record, pending) => {
+      queryClient.setQueryData<Record<string, CountRecord>>(
+        countsQueryKey(pending.dataset),
+        (current) => ({
+          ...current,
+          [pending.kvEdgeId]: record,
+        }),
+      )
+      void queryClient.invalidateQueries({ queryKey: countsQueryKey(pending.dataset) })
+      void queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
     },
   })
   const clearMutation = useMutation({
@@ -68,11 +92,77 @@ export function EditPanel() {
     },
     onSuccess: async () => {
       if (!dataset) return
+      lastSentRef.current = null
+      setFormResetCount((count) => count + 1)
       await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
       await queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
       await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
     },
   })
+
+  async function executeSave(pending: PendingSave) {
+    savingRef.current = true
+    try {
+      await saveMutation.mutateAsync(pending)
+    } catch {
+      // Surfaced via saveMutation.isError below; do not retry automatically.
+    } finally {
+      savingRef.current = false
+      const queued = queuedRef.current
+      queuedRef.current = null
+      if (queued) await executeSave(queued)
+    }
+  }
+
+  async function runSave(pending: PendingSave) {
+    if (!auth.authenticated) return
+    const occupancy: Occupancy = {
+      left: pending.record.left,
+      right: pending.record.right,
+      note: pending.record.note,
+    }
+    const last = lastSentRef.current
+    if (last && last.kvEdgeId === pending.kvEdgeId && sameOccupancy(last.occupancy, occupancy)) {
+      return
+    }
+    if (!pending.hadExistingRecord && isEmptyOccupancy(occupancy)) return
+
+    lastSentRef.current = { kvEdgeId: pending.kvEdgeId, occupancy }
+    if (savingRef.current) {
+      queuedRef.current = pending
+      return
+    }
+    await executeSave(pending)
+  }
+
+  const debouncer = useAsyncDebouncer(runSave, { wait: 500 })
+
+  useEffect(
+    function flushPendingSaveOnEdgeChange() {
+      return function flushBeforeEdgeChanges() {
+        void debouncer.flush()
+      }
+    },
+    [edgeId, debouncer],
+  )
+
+  useEffect(
+    function flushPendingSaveOnPageHide() {
+      function flushOnPageHide() {
+        void debouncer.flush()
+      }
+      function flushOnVisibilityHidden() {
+        if (document.visibilityState === 'hidden') void debouncer.flush()
+      }
+      window.addEventListener('pagehide', flushOnPageHide)
+      document.addEventListener('visibilitychange', flushOnVisibilityHidden)
+      return function stopFlushingOnPageHide() {
+        window.removeEventListener('pagehide', flushOnPageHide)
+        document.removeEventListener('visibilitychange', flushOnVisibilityHidden)
+      }
+    },
+    [debouncer],
+  )
 
   if (!dataset) return null
   if (!edgeId || !edge) {
@@ -93,20 +183,26 @@ export function EditPanel() {
     right: properties.parking_right === 'no',
   }
 
-  function saveFromForm(form: HTMLFormElement) {
-    saveMutation.mutate(
-      countRecordFromFormData(new FormData(form), {
+  function handleFormInput(event: FormEvent<HTMLFormElement>) {
+    if (!dataset || !kvEdgeId) return
+    const pending: PendingSave = {
+      dataset,
+      kvEdgeId,
+      hadExistingRecord: Boolean(saved),
+      record: countRecordFromFormData(new FormData(event.currentTarget), {
         updatedBy: auth.displayName,
         edgeId,
         coordinates: selectedEdge.geometry.coordinates,
         existing: saved,
       }),
-    )
+    }
+    void debouncer.maybeExecute(pending)
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    saveFromForm(event.currentTarget)
+  function handleFormBlur(event: FocusEvent<HTMLFormElement>) {
+    const next = event.relatedTarget
+    if (next instanceof Node && event.currentTarget.contains(next)) return
+    void debouncer.flush()
   }
 
   return (
@@ -133,9 +229,10 @@ export function EditPanel() {
         ))}
       </Text>
       <form
-        key={`${edgeId}-${saved?.updated_at ?? 'new'}`}
+        key={`${edgeId}-${formResetCount}`}
         className="mt-3 space-y-3"
-        onSubmit={handleSubmit}
+        onInput={handleFormInput}
+        onBlur={handleFormBlur}
         data-testid="count-form"
       >
         <CountGrid
@@ -147,7 +244,14 @@ export function EditPanel() {
         />
         <Field>
           <Label>Notiz</Label>
-          <Input name="note" defaultValue={saved?.note ?? ''} autoComplete="off" />
+          <Textarea
+            name="note"
+            rows={1}
+            resizable={false}
+            autoGrow
+            defaultValue={saved?.note ?? ''}
+            autoComplete="off"
+          />
         </Field>
         {!auth.authenticated ? <Callout>{osmLoginRequiredMessage}</Callout> : null}
         {saveMutation.isError ? (
@@ -168,23 +272,12 @@ export function EditPanel() {
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              color="sky"
-              data-testid="save-count"
-              disabled={!auth.authenticated}
-              onClick={(event) => {
-                const form = event.currentTarget.closest('form')
-                if (form) saveFromForm(form)
-              }}
-            >
-              Speichern
-            </Button>
-            <Button
-              type="button"
               outline
               data-testid="delete-count"
               disabled={!auth.authenticated}
               onClick={() => {
                 if (!window.confirm('Zählung für diese Kante löschen?')) return
+                debouncer.cancel()
                 clearMutation.mutate()
               }}
             >
@@ -194,12 +287,14 @@ export function EditPanel() {
           <Button
             type="button"
             plain
-            onClick={() =>
-              void navigate({
-                search: (previous) => ({ ...previous, edge: undefined }),
-                replace: true,
+            onClick={() => {
+              void debouncer.flush().then(() => {
+                void navigate({
+                  search: (previous) => ({ ...previous, edge: undefined }),
+                  replace: true,
+                })
               })
-            }
+            }}
           >
             Schließen
           </Button>

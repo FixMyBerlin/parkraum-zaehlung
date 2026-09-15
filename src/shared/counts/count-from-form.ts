@@ -1,5 +1,5 @@
 import { lineMidpoint } from '@/shared/edges/line-midpoint'
-import { type CountRecord, matchStatusSchema, type SideCount } from './schema'
+import { type CountRecord, isSideCounted, matchStatusSchema, type SideCount } from './schema'
 
 export function readSideCount(form: FormData, side: 'left' | 'right') {
   const read = (key: keyof SideCount) => {
@@ -68,4 +68,29 @@ export function countRecordFromFormData(data: FormData, args: CountRecordFromFor
     match_id: matchFromForm?.match_id ?? args.edgeId,
     match_status: matchFromForm?.match_status ?? 'id',
   }
+}
+
+/** The user-entered part of a count record: sides and note, without bookkeeping fields. */
+export type Occupancy = Pick<CountRecord, 'left' | 'right' | 'note'>
+
+function sameSideCount(a: SideCount, b: SideCount) {
+  return a.pkw === b.pkw && a.motorrad === b.motorrad && a.lkw_bus === b.lkw_bus
+}
+
+/** True when neither side has any count and the note is blank (undefined and '' are equivalent). */
+export function isEmptyOccupancy(occupancy: Occupancy) {
+  return !isSideCounted(occupancy.left) && !isSideCounted(occupancy.right) && !occupancy.note
+}
+
+/**
+ * Compares two occupancies by user-visible content only (left/right/note), ignoring
+ * bookkeeping fields like `updated_at`/`updated_by`. Autosave uses this to skip a PUT
+ * when the form's content didn't actually change.
+ */
+export function sameOccupancy(a: Occupancy, b: Occupancy) {
+  return (
+    sameSideCount(a.left, b.left) &&
+    sameSideCount(a.right, b.right) &&
+    (a.note ?? '') === (b.note ?? '')
+  )
 }

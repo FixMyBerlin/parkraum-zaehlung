@@ -145,7 +145,7 @@ test.describe('counting flow', () => {
     await page.getByTestId('left-pkw').fill('7')
     await page.getByTestId('left-motorrad').fill('1')
     await page.getByTestId('right-pkw').fill('5')
-    await page.getByTestId('save-count').click()
+    await page.getByTestId('selected-edge-name').click()
 
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
 
@@ -170,7 +170,7 @@ test.describe('counting flow', () => {
     await page.getByTestId('left-pkw').fill('7')
     await page.getByTestId('left-motorrad').fill('1')
     await page.getByTestId('right-pkw').fill('5')
-    await page.getByTestId('save-count').click()
+    await page.getByTestId('selected-edge-name').click()
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
 
     await page.getByRole('link', { name: 'Zähl-Datenbank' }).click()
@@ -181,5 +181,27 @@ test.describe('counting flow', () => {
     await page.getByTestId('admin-left-pkw').fill('9')
     await page.getByTestId('admin-save-count').click()
     await expect(row).toContainText('9')
+  })
+
+  test('keeps a multiline note after switching edges and back', async ({ page }) => {
+    await page.goto('/')
+    await page
+      .getByTestId('edges-file-input')
+      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await page.getByTestId('import-dataset').click()
+    await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
+
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+
+    const note = page.locator('form[data-testid="count-form"] textarea[name="note"]')
+    await note.fill('Zeile 1\nZeile 2')
+
+    await page.getByTestId('edge-list-ce-tumringer').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Tumringer Straße')
+
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+    await expect(note).toHaveValue('Zeile 1\nZeile 2')
   })
 })
