@@ -29,9 +29,13 @@ function readUrl(call: FetchCall | undefined) {
 }
 
 const osmUser = { osm_uid: 1, display_name: 'alice' }
+const sampleRecordBase = emptyCountRecord('2026-09-08T12:00:00.000Z')
 const sampleRecord: CountRecord = {
-  ...emptyCountRecord('2026-09-08T12:00:00.000Z'),
-  left: { pkw: 4, motorrad: 1, lkw_bus: 0 },
+  ...sampleRecordBase,
+  periods: {
+    ...sampleRecordBase.periods,
+    sunday: { ...sampleRecordBase.periods.sunday, left: { pkw: 4, motorrad: 1, lkw_bus: 0 } },
+  },
 }
 
 function kvEntry(id: string, data: CountRecord, tags: string[]) {

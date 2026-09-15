@@ -117,8 +117,7 @@ export function EditPanel() {
   async function runSave(pending: PendingSave) {
     if (!auth.authenticated) return
     const occupancy: Occupancy = {
-      left: pending.record.left,
-      right: pending.record.right,
+      periods: pending.record.periods,
       note: pending.record.note,
     }
     const last = lastSentRef.current

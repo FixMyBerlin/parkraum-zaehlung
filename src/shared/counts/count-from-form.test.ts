@@ -6,7 +6,7 @@ import {
   sameOccupancy,
   type Occupancy,
 } from './count-from-form'
-import { emptyCountRecord, emptySideCount } from './schema'
+import { emptyCountRecord, emptyPeriodOccupancy, emptySideCount } from './schema'
 
 function formData(entries: Record<string, string>) {
   const data = new FormData()
@@ -20,15 +20,17 @@ const coordinates = [
 ] as const
 
 describe('countRecordFromFormData', () => {
-  it('reads sides, note, author, and location from a new edge', () => {
+  it('reads all three periods, note, author, and location from a new edge', () => {
     const record = countRecordFromFormData(
       formData({
-        left_pkw: '4',
-        left_motorrad: '',
-        left_lkw_bus: '0',
-        right_pkw: '2',
-        right_motorrad: '1',
-        right_lkw_bus: '',
+        sunday_left_pkw: '4',
+        sunday_left_motorrad: '',
+        sunday_left_lkw_bus: '0',
+        sunday_right_pkw: '2',
+        sunday_right_motorrad: '1',
+        sunday_right_lkw_bus: '',
+        midday_left_pkw: '3',
+        evening_right_pkw: '6',
         note: 'Ecke',
       }),
       {
@@ -37,8 +39,11 @@ describe('countRecordFromFormData', () => {
         coordinates,
       },
     )
-    expect(record.left).toEqual({ pkw: 4, motorrad: null, lkw_bus: 0 })
-    expect(record.right).toEqual({ pkw: 2, motorrad: 1, lkw_bus: null })
+    expect(record.periods.sunday.left).toEqual({ pkw: 4, motorrad: null, lkw_bus: 0 })
+    expect(record.periods.sunday.right).toEqual({ pkw: 2, motorrad: 1, lkw_bus: null })
+    expect(record.periods.midday.left).toEqual({ pkw: 3, motorrad: null, lkw_bus: null })
+    expect(record.periods.midday.right).toEqual(emptySideCount())
+    expect(record.periods.evening.right).toEqual({ pkw: 6, motorrad: null, lkw_bus: null })
     expect(record.note).toBe('Ecke')
     expect(record.updated_by).toBe('tordans')
     expect(record.updated_at).toEqual(expect.any(String))
@@ -76,7 +81,7 @@ describe('countRecordFromFormData', () => {
       coordinates,
     })
     expect(record.note).toBeUndefined()
-    expect(readSideCount(formData({}), 'left')).toEqual({
+    expect(readSideCount(formData({}), 'sunday', 'left')).toEqual({
       pkw: null,
       motorrad: null,
       lkw_bus: null,
@@ -86,21 +91,46 @@ describe('countRecordFromFormData', () => {
 
 function occupancy(overrides: Partial<Occupancy> = {}): Occupancy {
   return {
-    left: emptySideCount(),
-    right: emptySideCount(),
+    periods: {
+      sunday: emptyPeriodOccupancy(),
+      midday: emptyPeriodOccupancy(),
+      evening: emptyPeriodOccupancy(),
+    },
     note: undefined,
     ...overrides,
   }
 }
 
 describe('isEmptyOccupancy', () => {
-  it('is empty when both sides and the note are blank', () => {
+  it('is empty when all periods and the note are blank', () => {
     expect(isEmptyOccupancy(occupancy())).toBe(true)
     expect(isEmptyOccupancy(occupancy({ note: '' }))).toBe(true)
   })
 
-  it('is not empty once a side has a count', () => {
-    expect(isEmptyOccupancy(occupancy({ left: { ...emptySideCount(), pkw: 0 } }))).toBe(false)
+  it('is not empty once a Sunday side has a count', () => {
+    const base = occupancy()
+    expect(
+      isEmptyOccupancy({
+        ...base,
+        periods: {
+          ...base.periods,
+          sunday: { ...base.periods.sunday, left: { ...emptySideCount(), pkw: 0 } },
+        },
+      }),
+    ).toBe(false)
+  })
+
+  it('is not empty once a midday side has a count', () => {
+    const base = occupancy()
+    expect(
+      isEmptyOccupancy({
+        ...base,
+        periods: {
+          ...base.periods,
+          midday: { ...base.periods.midday, right: { ...emptySideCount(), pkw: 2 } },
+        },
+      }),
+    ).toBe(false)
   })
 
   it('is not empty once a note is set', () => {
@@ -119,10 +149,35 @@ describe('sameOccupancy', () => {
     expect(sameOccupancy(a, b)).toBe(true)
   })
 
-  it('detects a changed side count', () => {
-    const a = occupancy({ left: { ...emptySideCount(), pkw: 1 } })
-    const b = occupancy({ left: { ...emptySideCount(), pkw: 2 } })
+  it('detects a changed Sunday side count', () => {
+    const base = occupancy()
+    const a: Occupancy = {
+      ...base,
+      periods: {
+        ...base.periods,
+        sunday: { ...base.periods.sunday, left: { ...emptySideCount(), pkw: 1 } },
+      },
+    }
+    const b: Occupancy = {
+      ...base,
+      periods: {
+        ...base.periods,
+        sunday: { ...base.periods.sunday, left: { ...emptySideCount(), pkw: 2 } },
+      },
+    }
     expect(sameOccupancy(a, b)).toBe(false)
+  })
+
+  it('detects a changed midday or evening side count', () => {
+    const base = occupancy()
+    const a: Occupancy = {
+      ...base,
+      periods: {
+        ...base.periods,
+        evening: { ...base.periods.evening, right: { ...emptySideCount(), pkw: 1 } },
+      },
+    }
+    expect(sameOccupancy(a, base)).toBe(false)
   })
 
   it('detects a changed note', () => {

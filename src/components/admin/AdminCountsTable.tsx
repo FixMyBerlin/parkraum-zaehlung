@@ -8,12 +8,29 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/shared/cn'
 import type { CountStoreEntry } from '@/shared/counts/count-store'
+import {
+  countPeriods,
+  isSideCounted,
+  occupancyFor,
+  type PeriodOccupancy,
+  type SideCount,
+} from '@/shared/counts/schema'
 
-function formatSide(side: CountStoreEntry['record']['left']) {
-  if (side.pkw == null && side.motorrad == null && side.lkw_bus == null) return '—'
+const periodColumnLabel = {
+  sunday: 'Sonntag',
+  midday: 'Mittags',
+  evening: 'Abends',
+} as const
+
+function formatSide(side: SideCount) {
   return [side.pkw, side.motorrad, side.lkw_bus]
     .map((value) => (value == null ? '·' : String(value)))
     .join(' / ')
+}
+
+function formatPeriod(occupancy: PeriodOccupancy) {
+  if (!isSideCounted(occupancy.left) && !isSideCounted(occupancy.right)) return '—'
+  return `${formatSide(occupancy.left)} · ${formatSide(occupancy.right)}`
 }
 
 type Props = {
@@ -35,8 +52,9 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
           <TableHeader>Projekt</TableHeader>
           <TableHeader>Kante</TableHeader>
           <TableHeader data-testid="admin-col-match">Zuordnung</TableHeader>
-          <TableHeader>Links Pkw / Motorrad / Lkw</TableHeader>
-          <TableHeader>Rechts Pkw / Motorrad / Lkw</TableHeader>
+          {countPeriods.map((period) => (
+            <TableHeader key={period}>{periodColumnLabel[period]}</TableHeader>
+          ))}
           <TableHeader>Notiz</TableHeader>
           <TableHeader>Von</TableHeader>
           <TableHeader>Aktualisiert</TableHeader>
@@ -61,8 +79,11 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
                 {entry.record.match_status}
                 {entry.record.match_id ? ` → ${entry.record.match_id}` : ''}
               </TableCell>
-              <TableCell className="tabular-nums">{formatSide(entry.record.left)}</TableCell>
-              <TableCell className="tabular-nums">{formatSide(entry.record.right)}</TableCell>
+              {countPeriods.map((period) => (
+                <TableCell key={period} className="tabular-nums">
+                  {formatPeriod(occupancyFor(entry.record, period))}
+                </TableCell>
+              ))}
               <TableCell className="max-w-40 truncate text-zinc-400">
                 {entry.record.note ?? '—'}
               </TableCell>

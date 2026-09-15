@@ -1,9 +1,18 @@
 import { lineMidpoint } from '@/shared/edges/line-midpoint'
-import { type CountRecord, isSideCounted, matchStatusSchema, type SideCount } from './schema'
+import {
+  countPeriods,
+  isSideCounted,
+  matchStatusSchema,
+  type CountPeriod,
+  type CountRecord,
+  type PeriodOccupancy,
+  type Side,
+  type SideCount,
+} from './schema'
 
-export function readSideCount(form: FormData, side: 'left' | 'right') {
+export function readSideCount(form: FormData, period: CountPeriod, side: Side) {
   const read = (key: keyof SideCount) => {
-    const raw = form.get(`${side}_${key}`)
+    const raw = form.get(`${period}_${side}_${key}`)
     if (raw == null || raw === '') return null
     const parsed = Number(raw)
     return Number.isFinite(parsed) ? parsed : null
@@ -15,11 +24,20 @@ export function readSideCount(form: FormData, side: 'left' | 'right') {
   }
 }
 
+function periodOccupancyFromForm(data: FormData, period: CountPeriod): PeriodOccupancy {
+  return {
+    left: readSideCount(data, period, 'left'),
+    right: readSideCount(data, period, 'right'),
+  }
+}
+
 function occupancyFromForm(data: FormData, updatedBy?: string) {
   const noteValue = data.get('note')
+  const periods = Object.fromEntries(
+    countPeriods.map((period) => [period, periodOccupancyFromForm(data, period)]),
+  ) as CountRecord['periods']
   return {
-    left: readSideCount(data, 'left'),
-    right: readSideCount(data, 'right'),
+    periods,
     note: typeof noteValue === 'string' && noteValue ? noteValue : undefined,
     updated_at: new Date().toISOString(),
     updated_by: updatedBy,
@@ -70,27 +88,37 @@ export function countRecordFromFormData(data: FormData, args: CountRecordFromFor
   }
 }
 
-/** The user-entered part of a count record: sides and note, without bookkeeping fields. */
-export type Occupancy = Pick<CountRecord, 'left' | 'right' | 'note'>
+/** The user-entered part of a count record: all three periods and the note, without bookkeeping fields. */
+export type Occupancy = Pick<CountRecord, 'periods' | 'note'>
 
 function sameSideCount(a: SideCount, b: SideCount) {
   return a.pkw === b.pkw && a.motorrad === b.motorrad && a.lkw_bus === b.lkw_bus
 }
 
-/** True when neither side has any count and the note is blank (undefined and '' are equivalent). */
+function samePeriodOccupancy(a: PeriodOccupancy, b: PeriodOccupancy) {
+  return sameSideCount(a.left, b.left) && sameSideCount(a.right, b.right)
+}
+
+function isPeriodOccupancyEmpty(occupancy: PeriodOccupancy) {
+  return !isSideCounted(occupancy.left) && !isSideCounted(occupancy.right)
+}
+
+/** True when no period has any count and the note is blank (undefined and '' are equivalent). */
 export function isEmptyOccupancy(occupancy: Occupancy) {
-  return !isSideCounted(occupancy.left) && !isSideCounted(occupancy.right) && !occupancy.note
+  return (
+    countPeriods.every((period) => isPeriodOccupancyEmpty(occupancy.periods[period])) &&
+    !occupancy.note
+  )
 }
 
 /**
- * Compares two occupancies by user-visible content only (left/right/note), ignoring
- * bookkeeping fields like `updated_at`/`updated_by`. Autosave uses this to skip a PUT
- * when the form's content didn't actually change.
+ * Compares two occupancies by user-visible content only (all three periods and the note),
+ * ignoring bookkeeping fields like `updated_at`/`updated_by`. Autosave uses this to skip a
+ * PUT when the form's content didn't actually change.
  */
 export function sameOccupancy(a: Occupancy, b: Occupancy) {
   return (
-    sameSideCount(a.left, b.left) &&
-    sameSideCount(a.right, b.right) &&
+    countPeriods.every((period) => samePeriodOccupancy(a.periods[period], b.periods[period])) &&
     (a.note ?? '') === (b.note ?? '')
   )
 }

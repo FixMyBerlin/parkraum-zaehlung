@@ -1,5 +1,10 @@
 import { recordForEdge } from '@/shared/counts/match-counts'
-import { countedSides, type CountRecord } from '@/shared/counts/schema'
+import {
+  countedSides,
+  hasExtraPeriodData,
+  isPeriodSideCounted,
+  type CountRecord,
+} from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
 type EdgeCountState = 'uncounted' | 'partial' | 'full'
@@ -16,7 +21,10 @@ export function decorateEdges(
   matchUi?: DecorateMatchUi,
 ) {
   const features = collection.features.map((feature) => {
-    const sides = countedSides(recordForEdge(records, feature.properties.id))
+    const record = recordForEdge(records, feature.properties.id)
+    // Completeness and the default map style read Sunday only; midday/evening only
+    // add the partner-line cluster below.
+    const sides = countedSides(record)
     const countState: EdgeCountState = sides === 0 ? 'uncounted' : sides === 2 ? 'full' : 'partial'
     const isCandidate = matchUi?.candidateIds.has(feature.properties.id) ?? false
     return {
@@ -26,6 +34,13 @@ export function decorateEdges(
         ...feature.properties,
         count_state: countState,
         counted_sides: sides,
+        has_extra_periods: hasExtraPeriodData(record),
+        left_sunday: record ? isPeriodSideCounted(record, 'sunday', 'left') : false,
+        left_midday: record ? isPeriodSideCounted(record, 'midday', 'left') : false,
+        left_evening: record ? isPeriodSideCounted(record, 'evening', 'left') : false,
+        right_sunday: record ? isPeriodSideCounted(record, 'sunday', 'right') : false,
+        right_midday: record ? isPeriodSideCounted(record, 'midday', 'right') : false,
+        right_evening: record ? isPeriodSideCounted(record, 'evening', 'right') : false,
         match_candidate: isCandidate,
         match_selected: matchUi?.selectedCandidateId === feature.properties.id,
       },

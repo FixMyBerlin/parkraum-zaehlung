@@ -58,8 +58,13 @@ describe('stepDescription', () => {
       a: {
         ...empty,
         match_id: 'a',
-        left: { pkw: 1, motorrad: null, lkw_bus: null },
-        right: { pkw: 1, motorrad: null, lkw_bus: null },
+        periods: {
+          ...empty.periods,
+          sunday: {
+            left: { pkw: 1, motorrad: null, lkw_bus: null },
+            right: { pkw: 1, motorrad: null, lkw_bus: null },
+          },
+        },
       },
     }
     expect(edgeCountProgress(edges, records)).toEqual({ counted: 1, total: 2 })

@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent } from 'react'
+import { useActiveCountPeriod } from '@/components/count-period-store'
+import { CountPeriodToggle } from '@/components/CountPeriodToggle'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
@@ -24,6 +26,7 @@ import {
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
+import { countPeriods } from '@/shared/counts/schema'
 
 const categories = [
   { key: 'pkw', label: 'Pkw' },
@@ -39,6 +42,7 @@ export function AdminCountForm({ entry }: Props) {
   const queryClient = useQueryClient()
   const navigate = useNavigate({ from: '/data' })
   const auth = useOsmAuth()
+  const activePeriod = useActiveCountPeriod()
   const { dataset, edgeId, record: saved } = entry
 
   const saveMutation = useMutation({
@@ -111,36 +115,45 @@ export function AdminCountForm({ entry }: Props) {
       <Divider soft />
 
       <Fieldset>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <p className="text-sm/6 font-medium text-zinc-400">Links</p>
-          <p className="text-sm/6 font-medium text-zinc-400">Rechts</p>
-          {categories.map((category) => (
-            <div key={category.key} className="contents">
-              <Field>
-                <Label>{category.label} links</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  name={`left_${category.key}`}
-                  defaultValue={saved.left[category.key] ?? ''}
-                  autoComplete="off"
-                  data-testid={`admin-left-${category.key}`}
-                />
-              </Field>
-              <Field>
-                <Label>{category.label} rechts</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  name={`right_${category.key}`}
-                  defaultValue={saved.right[category.key] ?? ''}
-                  autoComplete="off"
-                  data-testid={`admin-right-${category.key}`}
-                />
-              </Field>
-            </div>
-          ))}
+        <div className="mb-4">
+          <CountPeriodToggle />
         </div>
+        {countPeriods.map((period) => (
+          <div
+            key={period}
+            hidden={period !== activePeriod}
+            className="grid grid-cols-2 gap-x-4 gap-y-4"
+          >
+            <p className="text-sm/6 font-medium text-zinc-400">Links</p>
+            <p className="text-sm/6 font-medium text-zinc-400">Rechts</p>
+            {categories.map((category) => (
+              <div key={category.key} className="contents">
+                <Field>
+                  <Label>{category.label} links</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    name={`${period}_left_${category.key}`}
+                    defaultValue={saved.periods[period].left[category.key] ?? ''}
+                    autoComplete="off"
+                    data-testid={`admin-${period}-left-${category.key}`}
+                  />
+                </Field>
+                <Field>
+                  <Label>{category.label} rechts</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    name={`${period}_right_${category.key}`}
+                    defaultValue={saved.periods[period].right[category.key] ?? ''}
+                    autoComplete="off"
+                    data-testid={`admin-${period}-right-${category.key}`}
+                  />
+                </Field>
+              </div>
+            ))}
+          </div>
+        ))}
       </Fieldset>
 
       <Field>

@@ -28,9 +28,11 @@ import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
 import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
 import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
+import { countPeriods } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import { decorateEdges } from '@/shared/edges/decorate-edges'
 import {
+  EDGE_SIDE_CLUSTER_OFFSET,
   EDGE_SIDE_LINE_COLOR,
   EDGE_SIDE_LINE_OFFSET,
   edgeSideLineWidth,
@@ -41,7 +43,11 @@ import {
   EDGES_ID_LABELS_LAYER_ID,
   EDGES_LAYER_ID,
   EDGES_LEFT_LAYER_ID,
+  EDGES_LEFT_PERIOD_LAYER_ID,
+  EDGES_LEFT_PERIOD_LAYER_IDS,
   EDGES_RIGHT_LAYER_ID,
+  EDGES_RIGHT_PERIOD_LAYER_ID,
+  EDGES_RIGHT_PERIOD_LAYER_IDS,
   EDGES_SELECTED_LAYER_ID,
   EDGES_SOURCE_ID,
   MAIN_MAP_ID,
@@ -123,8 +129,19 @@ export function CountingMap() {
   }
 
   function sideFromLayer(layerId: string | undefined) {
-    if (layerId === EDGES_LEFT_LAYER_ID) return 'left' as const
-    if (layerId === EDGES_RIGHT_LAYER_ID) return 'right' as const
+    if (!layerId) return 'center' as const
+    if (
+      layerId === EDGES_LEFT_LAYER_ID ||
+      (EDGES_LEFT_PERIOD_LAYER_IDS as readonly string[]).includes(layerId)
+    ) {
+      return 'left' as const
+    }
+    if (
+      layerId === EDGES_RIGHT_LAYER_ID ||
+      (EDGES_RIGHT_PERIOD_LAYER_IDS as readonly string[]).includes(layerId)
+    ) {
+      return 'right' as const
+    }
     return 'center' as const
   }
 
@@ -253,10 +270,13 @@ export function CountingMap() {
                   : 1,
               }}
             />
+            {/* Plain ±6 side lines — the default look, hidden once an edge grows a
+              three-line partner cluster below (`has_extra_periods`). */}
             <Layer
               id={EDGES_LEFT_LAYER_ID}
               type="line"
               source={EDGES_SOURCE_ID}
+              filter={['!', ['get', 'has_extra_periods']]}
               paint={{
                 'line-width': edgeSideLineWidth('left', sideLineArgs),
                 'line-offset': -EDGE_SIDE_LINE_OFFSET,
@@ -268,6 +288,7 @@ export function CountingMap() {
               id={EDGES_RIGHT_LAYER_ID}
               type="line"
               source={EDGES_SOURCE_ID}
+              filter={['!', ['get', 'has_extra_periods']]}
               paint={{
                 'line-width': edgeSideLineWidth('right', sideLineArgs),
                 'line-offset': EDGE_SIDE_LINE_OFFSET,
@@ -275,6 +296,39 @@ export function CountingMap() {
                 'line-opacity': 0.85,
               }}
             />
+            {/* Three-line partner cluster: one layer per side per period, each gated on
+              `has_extra_periods` plus that period's own boolean so a period with no data
+              on that side leaves a gap instead of drawing a zero-length stub. */}
+            {countPeriods.map((period) => (
+              <Layer
+                key={`left-${period}`}
+                id={EDGES_LEFT_PERIOD_LAYER_ID[period]}
+                type="line"
+                source={EDGES_SOURCE_ID}
+                filter={['all', ['get', 'has_extra_periods'], ['get', `left_${period}`]]}
+                paint={{
+                  'line-width': edgeSideLineWidth('left', sideLineArgs),
+                  'line-offset': -EDGE_SIDE_CLUSTER_OFFSET[period],
+                  'line-color': EDGE_SIDE_LINE_COLOR.left,
+                  'line-opacity': 0.85,
+                }}
+              />
+            ))}
+            {countPeriods.map((period) => (
+              <Layer
+                key={`right-${period}`}
+                id={EDGES_RIGHT_PERIOD_LAYER_ID[period]}
+                type="line"
+                source={EDGES_SOURCE_ID}
+                filter={['all', ['get', 'has_extra_periods'], ['get', `right_${period}`]]}
+                paint={{
+                  'line-width': edgeSideLineWidth('right', sideLineArgs),
+                  'line-offset': EDGE_SIDE_CLUSTER_OFFSET[period],
+                  'line-color': EDGE_SIDE_LINE_COLOR.right,
+                  'line-opacity': 0.85,
+                }}
+              />
+            ))}
             <Layer
               id={EDGES_ARROWS_LAYER_ID}
               type="symbol"

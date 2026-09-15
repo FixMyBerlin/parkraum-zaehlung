@@ -41,29 +41,38 @@ const collection: CountingEdgesGeoJSON = {
 }
 
 function recordFor(id: string, extras: Parameters<typeof emptyCountRecord>[1] = {}) {
+  const base = emptyCountRecord('2026-09-08T00:00:00.000Z', {
+    match_id: id,
+    match_status: 'id',
+    mid_lat: 47.611,
+    mid_lng: 7.6605,
+    ...extras,
+  })
   return {
-    ...emptyCountRecord('2026-09-08T00:00:00.000Z', {
-      match_id: id,
-      match_status: 'id',
-      mid_lat: 47.611,
-      mid_lng: 7.6605,
-      ...extras,
-    }),
-    left: { pkw: 3, motorrad: 1, lkw_bus: null },
+    ...base,
+    periods: {
+      ...base.periods,
+      sunday: { ...base.periods.sunday, left: { pkw: 3, motorrad: 1, lkw_bus: null } },
+    },
   }
 }
 
 describe('mergeCountsIntoEdges', () => {
-  it('copies left/right category fields onto matching features', () => {
+  it('copies flat sunday_/midday_/evening_ category fields onto matching features', () => {
     const merged = mergeCountsIntoEdges(collection, { 'ce-1': recordFor('ce-1') })
     expect(merged.features[0]?.properties).toMatchObject({
-      left_pkw: 3,
-      left_motorrad: 1,
+      sunday_left_pkw: 3,
+      sunday_left_motorrad: 1,
+      sunday_right_pkw: null,
+      midday_left_pkw: null,
+      evening_left_pkw: null,
       counted_sides: 1,
       original_edge_id: 'ce-1',
       match_id: 'ce-1',
       match_status: 'id',
     })
+    expect(merged.features[0]?.properties).not.toHaveProperty('left_pkw')
+    expect(merged.features[0]?.properties).not.toHaveProperty('periods')
   })
 
   it('joins a rematched count via match_id, not the KV key', () => {
@@ -98,14 +107,18 @@ describe('mergeCountsIntoEdges', () => {
   })
 
   it('appends unresolved counts as Point features at the stored midpoint', () => {
+    const orphanBase = emptyCountRecord('2026-09-08T00:00:00.000Z', {
+      match_id: '',
+      match_status: 'id',
+      mid_lat: 47.7,
+      mid_lng: 7.7,
+    })
     const orphan = {
-      ...emptyCountRecord('2026-09-08T00:00:00.000Z', {
-        match_id: '',
-        match_status: 'id',
-        mid_lat: 47.7,
-        mid_lng: 7.7,
-      }),
-      left: { pkw: 2, motorrad: null, lkw_bus: 1 },
+      ...orphanBase,
+      periods: {
+        ...orphanBase.periods,
+        sunday: { ...orphanBase.periods.sunday, left: { pkw: 2, motorrad: null, lkw_bus: 1 } },
+      },
       note: 'stale id',
     }
     const merged = mergeCountsIntoEdges(collection, { 'ce-orphan': orphan })
@@ -125,7 +138,7 @@ describe('mergeCountsIntoEdges', () => {
         original_edge_id: 'ce-orphan',
         match_id: '',
         match_status: 'id',
-        left_pkw: 2,
+        sunday_left_pkw: 2,
         counted_at: '2026-09-08T00:00:00.000Z',
         note: 'stale id',
       },

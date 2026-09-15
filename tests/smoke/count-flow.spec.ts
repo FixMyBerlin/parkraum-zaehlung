@@ -142,9 +142,9 @@ test.describe('counting flow', () => {
     await page.getByTestId('edge-list-ce-basler-nord').click()
     await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
 
-    await page.getByTestId('left-pkw').fill('7')
-    await page.getByTestId('left-motorrad').fill('1')
-    await page.getByTestId('right-pkw').fill('5')
+    await page.getByTestId('sunday-left-pkw').fill('7')
+    await page.getByTestId('sunday-left-motorrad').fill('1')
+    await page.getByTestId('sunday-right-pkw').fill('5')
     await page.getByTestId('selected-edge-name').click()
 
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
@@ -167,9 +167,9 @@ test.describe('counting flow', () => {
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
     await page.getByTestId('edge-list-ce-basler-nord').click()
     await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
-    await page.getByTestId('left-pkw').fill('7')
-    await page.getByTestId('left-motorrad').fill('1')
-    await page.getByTestId('right-pkw').fill('5')
+    await page.getByTestId('sunday-left-pkw').fill('7')
+    await page.getByTestId('sunday-left-motorrad').fill('1')
+    await page.getByTestId('sunday-right-pkw').fill('5')
     await page.getByTestId('selected-edge-name').click()
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
 
@@ -178,9 +178,41 @@ test.describe('counting flow', () => {
     const row = page.getByTestId('admin-row-loerrach-sample-ce-basler-nord')
     await expect(row).toContainText('7')
     await row.click()
-    await page.getByTestId('admin-left-pkw').fill('9')
+    await page.getByTestId('admin-sunday-left-pkw').fill('9')
     await page.getByTestId('admin-save-count').click()
     await expect(row).toContainText('9')
+  })
+
+  test('keeps the active period after switching edges, and Sunday-only progress', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page
+      .getByTestId('edges-file-input')
+      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await page.getByTestId('import-dataset').click()
+    await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
+
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+
+    // Fill Sunday (the default period) completely on this edge.
+    await page.getByTestId('sunday-left-pkw').fill('7')
+    await page.getByTestId('sunday-right-pkw').fill('5')
+    await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+
+    // Switch to Mittags via the D shortcut and fill it in — Sunday-only progress must
+    // not change, since midday/evening are optional extras.
+    await page.getByTestId('selected-edge-name').click()
+    await page.keyboard.press('d')
+    await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
+    await page.getByTestId('midday-left-pkw').fill('3')
+    await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+
+    // Switching edges keeps Mittags active, and lands on that period's own fields.
+    await page.getByTestId('edge-list-ce-tumringer').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Tumringer Straße')
+    await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
   })
 
   test('keeps a multiline note after switching edges and back', async ({ page }) => {

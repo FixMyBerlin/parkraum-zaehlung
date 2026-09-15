@@ -1,4 +1,5 @@
 import type { ExpressionSpecification } from 'maplibre-gl'
+import type { CountPeriod } from '@/shared/counts/schema'
 
 export const EDGE_SIDE_LINE_COLOR = {
   left: '#38bdf8',
@@ -8,6 +9,17 @@ export const EDGE_SIDE_LINE_COLOR = {
 export const EDGE_SIDE_LINE_WIDTH = 3
 export const EDGE_SIDE_LINE_WIDTH_ACTIVE = 12
 export const EDGE_SIDE_LINE_OFFSET = 6
+
+/**
+ * Offsets for the three-line partner cluster (`has_extra_periods`), one line per
+ * period per side: Sunday closest to the edge, evening furthest out. Left offsets
+ * are negated by the caller so the cluster mirrors left/right around the edge.
+ */
+export const EDGE_SIDE_CLUSTER_OFFSET: Record<CountPeriod, number> = {
+  sunday: 3,
+  midday: 6,
+  evening: 9,
+}
 
 type HoveredSide = 'left' | 'right' | 'center' | null
 

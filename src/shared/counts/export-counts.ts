@@ -1,7 +1,7 @@
 import type { FeatureCollection, LineString, Point } from 'geojson'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 import { originalIdForEdge, recordForEdge } from './match-counts'
-import { countedSides, type CountRecord } from './schema'
+import { countedSides, countPeriods, type CountRecord } from './schema'
 
 export type CountStatus = 'counted' | 'uncounted' | 'unmatched' | 'unresolved'
 
@@ -24,14 +24,29 @@ export function buildAllCountsFile(datasets: Record<string, Record<string, Count
   }
 }
 
+/**
+ * GeoJSON is a flat, GIS-facing contract: 18 `{period}_{side}_{category}` number-or-null
+ * fields (never a nested `periods` object), always all 18 once a feature is counted at all.
+ */
+function periodExportFields(record: CountRecord) {
+  return Object.fromEntries(
+    countPeriods.flatMap((period) => {
+      const occupancy = record.periods[period]
+      return [
+        [`${period}_left_pkw`, occupancy.left.pkw],
+        [`${period}_left_motorrad`, occupancy.left.motorrad],
+        [`${period}_left_lkw_bus`, occupancy.left.lkw_bus],
+        [`${period}_right_pkw`, occupancy.right.pkw],
+        [`${period}_right_motorrad`, occupancy.right.motorrad],
+        [`${period}_right_lkw_bus`, occupancy.right.lkw_bus],
+      ]
+    }),
+  ) as Record<string, number | null>
+}
+
 function countExportFields(record: CountRecord, originalEdgeId: string) {
   return {
-    left_pkw: record.left.pkw,
-    left_motorrad: record.left.motorrad,
-    left_lkw_bus: record.left.lkw_bus,
-    right_pkw: record.right.pkw,
-    right_motorrad: record.right.motorrad,
-    right_lkw_bus: record.right.lkw_bus,
+    ...periodExportFields(record),
     counted_sides: countedSides(record),
     note: record.note,
     counted_at: record.counted_at,

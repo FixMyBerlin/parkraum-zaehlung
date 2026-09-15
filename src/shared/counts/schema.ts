@@ -14,13 +14,35 @@ export const emptySideCount = () => ({
   lkw_bus: null,
 })
 
+export type Side = 'left' | 'right'
+
+/** Sunday is the baseline count; midday and evening are optional extras. */
+export const countPeriods = ['sunday', 'midday', 'evening'] as const
+
+export type CountPeriod = (typeof countPeriods)[number]
+
+const periodOccupancySchema = z.object({
+  left: sideCountSchema,
+  right: sideCountSchema,
+})
+
+export type PeriodOccupancy = z.infer<typeof periodOccupancySchema>
+
+export const emptyPeriodOccupancy = (): PeriodOccupancy => ({
+  left: emptySideCount(),
+  right: emptySideCount(),
+})
+
 export const matchStatusSchema = z.enum(['id', 'midpoint', 'manual', 'none'])
 
 export type MatchStatus = z.infer<typeof matchStatusSchema>
 
 export const countRecordSchema = z.object({
-  left: sideCountSchema,
-  right: sideCountSchema,
+  periods: z.object({
+    sunday: periodOccupancySchema,
+    midday: periodOccupancySchema,
+    evening: periodOccupancySchema,
+  }),
   note: z.string().optional(),
   updated_at: z.string(),
   updated_by: z.string().optional(),
@@ -42,8 +64,11 @@ export function emptyCountRecord(
   extras: EmptyCountExtras = {},
 ) {
   return {
-    left: emptySideCount(),
-    right: emptySideCount(),
+    periods: {
+      sunday: emptyPeriodOccupancy(),
+      midday: emptyPeriodOccupancy(),
+      evening: emptyPeriodOccupancy(),
+    },
     updated_at: updatedAt,
     counted_at: extras.counted_at ?? updatedAt,
     match_id: extras.match_id ?? '',
@@ -57,10 +82,29 @@ export function isSideCounted(side: SideCount) {
   return side.pkw != null || side.motorrad != null || side.lkw_bus != null
 }
 
+/** The left/right occupancy for one period. Sunday is the baseline; midday/evening are extras. */
+export function occupancyFor(record: CountRecord, period: CountPeriod) {
+  return record.periods[period]
+}
+
+export function isPeriodSideCounted(record: CountRecord, period: CountPeriod, side: Side) {
+  return isSideCounted(occupancyFor(record, period)[side])
+}
+
+/** True once midday or evening has any occupancy — Sunday alone never counts as "extra". */
+export function hasExtraPeriodData(record: CountRecord | undefined) {
+  if (!record) return false
+  return (['midday', 'evening'] as const).some(
+    (period) =>
+      isSideCounted(record.periods[period].left) || isSideCounted(record.periods[period].right),
+  )
+}
+
+/** Completeness, the uncounted filter, and the default map style read Sunday only. */
 export function countedSides(record: CountRecord | undefined) {
   if (!record) return 0
-  const leftCounted = isSideCounted(record.left)
-  const rightCounted = isSideCounted(record.right)
+  const leftCounted = isSideCounted(record.periods.sunday.left)
+  const rightCounted = isSideCounted(record.periods.sunday.right)
   if (leftCounted && rightCounted) return 2
   return leftCounted || rightCounted ? 1 : 0
 }
