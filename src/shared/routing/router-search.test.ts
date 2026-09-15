@@ -39,6 +39,15 @@ describe('routerSearch', () => {
   it('drops the former login step from the URL', () => {
     expect(roundTrip({ step: 'login' }).step).toBeUndefined()
   })
+
+  it('round-trips the ELI background slug', () => {
+    expect(roundTrip({ bg: 'osm-mapnik' }).bg).toBe('osm-mapnik')
+  })
+
+  it('drops an empty bg', () => {
+    expect(roundTrip({ bg: '' }).bg).toBeUndefined()
+    expect(roundTrip({ bg: '   ' }).bg).toBeUndefined()
+  })
 })
 
 describe('dataSearchSchema', () => {

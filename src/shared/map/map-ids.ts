@@ -13,6 +13,9 @@ export const MATCH_POINT_LAYER_ID = 'count-match-point-circle'
 export const PARKINGS_SOURCE_ID = 'tilda-parkings'
 export const PARKINGS_LAYER_ID = 'tilda-parkings-line'
 
+export const BACKGROUND_SOURCE_ID = 'eli-background'
+export const BACKGROUND_LAYER_ID = 'eli-background'
+
 export const interactiveEdgeLayerIds = [
   EDGES_LAYER_ID,
   EDGES_LEFT_LAYER_ID,

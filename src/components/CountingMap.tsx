@@ -12,6 +12,9 @@ import {
   useMap,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
+import { MapBackgroundLayerControl } from '@/components/MapBackgroundLayerControl'
+import { MapBackgroundLayerSource } from '@/components/MapBackgroundLayerSource'
+import { MapResetNorthPitchButton } from '@/components/MapResetNorthPitchButton'
 import {
   useFocusedCountSide,
   useHoveredEdgeId,
@@ -57,14 +60,14 @@ export function CountingMap() {
   const navigate = useNavigate({ from: Route.fullPath })
   const search = Route.useSearch()
   const map = searchMapParam(search)
-  const { dataset, edge, uncounted, parkings, match: matchId } = search
+  const { dataset, edge, uncounted, parkings, bg, match: matchId } = search
   const currentStep = resolveStep(search)
   const matchMode = currentStep === 'dataset' && Boolean(matchId)
   const { assign } = useAssignMatch(dataset)
   const hoveredEdgeId = useHoveredEdgeId()
   const hoveredSide = useHoveredSide()
   const focusedCountSide = useFocusedCountSide()
-  const { setHover, setMapBearing } = useMapUiActions()
+  const { setHover, setMapBearing, setMapPitch } = useMapUiActions()
   const sideLineArgs = {
     hoveredEdgeId,
     hoveredSide,
@@ -142,9 +145,19 @@ export function CountingMap() {
         onLoad={(event: MapLibreEvent) => {
           exposeMainMapForDebugging(event.target)
           setMapBearing(event.target.getBearing())
+          setMapPitch(event.target.getPitch())
+        }}
+        onRotate={(event: ViewStateChangeEvent) => {
+          setMapBearing(event.viewState.bearing)
         }}
         onRotateEnd={(event: ViewStateChangeEvent) => {
           setMapBearing(event.viewState.bearing)
+        }}
+        onPitch={(event: ViewStateChangeEvent) => {
+          setMapPitch(event.viewState.pitch)
+        }}
+        onPitchEnd={(event: ViewStateChangeEvent) => {
+          setMapPitch(event.viewState.pitch)
         }}
         onMoveEnd={(event: ViewStateChangeEvent) => {
           const { latitude, longitude, zoom } = event.viewState
@@ -180,6 +193,10 @@ export function CountingMap() {
           })
         }}
       >
+        {/* Mounted first so its `beforeId={PARKINGS_LAYER_ID}` Layer paints below the
+          TILDA-Parkraum and counting-edges overlays; see the safety net inside for what
+          happens if the parkings layer does not exist yet when this one is created. */}
+        <MapBackgroundLayerSource backgroundLayerId={bg ?? null} />
         <AttributionControl compact />
         {/* Kept mounted and toggled via `visibility` so the layer order stays deterministic;
           MapLibre only requests tiles while the layer is visible. */}
@@ -325,7 +342,11 @@ export function CountingMap() {
           lat={selectedMatch.record.mid_lat}
         />
       ) : null}
-      <ParkingsLayerToggle parkings={parkings} />
+      <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
+        <MapResetNorthPitchButton />
+        <MapBackgroundLayerControl bg={bg ?? null} lat={map.lat} lng={map.lng} />
+        <ParkingsLayerToggle parkings={parkings} />
+      </div>
     </div>
   )
 }
@@ -347,28 +368,26 @@ function ParkingsLayerToggle({ parkings }: { parkings: boolean }) {
   const navigate = useNavigate({ from: Route.fullPath })
 
   return (
-    <div className="absolute top-3 right-3 z-10">
-      <Tooltip text="Blendet die von TILDA kartierten Parkstände auf der Karte ein. Orientierung beim Zählen, nicht die Zählgrundlage.">
-        <button
-          type="button"
-          aria-pressed={parkings}
-          aria-label="TILDA-Parkraum als Kontext"
-          className={cn(
-            'rounded-lg px-3 py-2 text-xs font-medium shadow-lg ring-1',
-            parkings
-              ? 'bg-amber-500 text-zinc-950 ring-amber-300'
-              : 'bg-zinc-900/90 text-white ring-white/10 hover:bg-zinc-800',
-          )}
-          onClick={() =>
-            void navigate({
-              search: (previous) => ({ ...previous, parkings: !parkings }),
-              replace: true,
-            })
-          }
-        >
-          TILDA-Parkraum
-        </button>
-      </Tooltip>
-    </div>
+    <Tooltip text="Blendet die von TILDA kartierten Parkstände auf der Karte ein. Orientierung beim Zählen, nicht die Zählgrundlage.">
+      <button
+        type="button"
+        aria-pressed={parkings}
+        aria-label="TILDA-Parkraum als Kontext"
+        className={cn(
+          'rounded-lg px-3 py-2 text-xs font-medium shadow-lg ring-1',
+          parkings
+            ? 'bg-amber-500 text-zinc-950 ring-amber-300'
+            : 'bg-zinc-900/90 text-white ring-white/10 hover:bg-zinc-800',
+        )}
+        onClick={() =>
+          void navigate({
+            search: (previous) => ({ ...previous, parkings: !parkings }),
+            replace: true,
+          })
+        }
+      >
+        TILDA-Parkraum
+      </button>
+    </Tooltip>
   )
 }

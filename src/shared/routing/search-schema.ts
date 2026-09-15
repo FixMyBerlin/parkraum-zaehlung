@@ -41,6 +41,8 @@ export const indexSearchSchema = z.object({
   match: optionalTrimmedSearchString,
   uncounted: optionalFlag.catch(false),
   parkings: optionalFlag.catch(false),
+  /** ELI background layer slug, or omitted for the default OpenFreeMap Positron. */
+  bg: optionalTrimmedSearchString,
   step: z
     .union([z.string(), z.number()])
     .optional()
