@@ -27,6 +27,7 @@ import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
 import { originalIdForEdge, recordForEdge } from '@/shared/counts/match-counts'
 import { type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
+import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
 
 type PendingSave = {
   dataset: string
@@ -249,7 +250,7 @@ export function EditPanel() {
             resizable={false}
             autoGrow
             defaultValue={saved?.note ?? ''}
-            autoComplete="off"
+            {...ignorePasswordManagerProps}
           />
         </Field>
         {!auth.authenticated ? <Callout>{osmLoginRequiredMessage}</Callout> : null}

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { AdminCountForm } from '@/components/admin/AdminCountForm'
 import { AdminCountsTable } from '@/components/admin/AdminCountsTable'
+import { ProjectsPanel } from '@/components/admin/ProjectsPanel'
 import { Callout } from '@/components/ui/callout'
 import { Field, Label } from '@/components/ui/fieldset'
 import { Heading, Subheading } from '@/components/ui/heading'
@@ -14,6 +15,7 @@ import {
   countStore,
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
+import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
 
 function matchesQuery(entry: CountStoreEntry, q: string) {
   const haystack = [
@@ -62,6 +64,8 @@ export function AdminCountsPage() {
           Alle Zählungen in der gemeinsamen Datenbank. Keine Kanten-Datei nötig.
         </Text>
 
+        <ProjectsPanel />
+
         <div className="mt-6 flex flex-wrap items-end gap-4">
           <Field className="min-w-48">
             <Label>Projekt</Label>
@@ -94,6 +98,7 @@ export function AdminCountsPage() {
               value={q ?? ''}
               placeholder="Kante, Notiz, Autor…"
               aria-label="Zählungen durchsuchen"
+              {...ignorePasswordManagerProps}
               onChange={(event) => {
                 const value = event.currentTarget.value.trim() || undefined
                 void navigate({

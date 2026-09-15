@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { type FormEvent } from 'react'
-import { useActiveCountPeriod } from '@/components/count-period-store'
+import { useEffect, type FormEvent } from 'react'
+import { useActiveCountPeriod, useCountPeriodActions } from '@/components/count-period-store'
 import { CountPeriodToggle } from '@/components/CountPeriodToggle'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,8 @@ import {
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
-import { countPeriods } from '@/shared/counts/schema'
+import { countPeriods, isPeriodSideCounted, type CountPeriod } from '@/shared/counts/schema'
+import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
 
 const categories = [
   { key: 'pkw', label: 'Pkw' },
@@ -43,7 +44,35 @@ export function AdminCountForm({ entry }: Props) {
   const navigate = useNavigate({ from: '/data' })
   const auth = useOsmAuth()
   const activePeriod = useActiveCountPeriod()
+  const { setPeriodHasData, resetPeriodHasData } = useCountPeriodActions()
   const { dataset, edgeId, record: saved } = entry
+
+  useEffect(
+    function seedPeriodDataIndicatorFromSaved() {
+      // Runs once per selected row (the form remounts by key on dataset/edgeId/updated_at).
+      resetPeriodHasData({
+        sunday:
+          isPeriodSideCounted(saved, 'sunday', 'left') ||
+          isPeriodSideCounted(saved, 'sunday', 'right'),
+        midday:
+          isPeriodSideCounted(saved, 'midday', 'left') ||
+          isPeriodSideCounted(saved, 'midday', 'right'),
+        evening:
+          isPeriodSideCounted(saved, 'evening', 'left') ||
+          isPeriodSideCounted(saved, 'evening', 'right'),
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
+
+  function handlePeriodInputChange(form: HTMLFormElement, period: CountPeriod) {
+    const inputs = form.querySelectorAll<HTMLInputElement>(`[name^="${period}_"]`)
+    setPeriodHasData(
+      period,
+      [...inputs].some((input) => input.value !== ''),
+    )
+  }
 
   const saveMutation = useMutation({
     mutationFn: async (form: HTMLFormElement) => {
@@ -135,8 +164,9 @@ export function AdminCountForm({ entry }: Props) {
                     min={0}
                     name={`${period}_left_${category.key}`}
                     defaultValue={saved.periods[period].left[category.key] ?? ''}
-                    autoComplete="off"
+                    {...ignorePasswordManagerProps}
                     data-testid={`admin-${period}-left-${category.key}`}
+                    onChange={(event) => handlePeriodInputChange(event.currentTarget.form!, period)}
                   />
                 </Field>
                 <Field>
@@ -146,8 +176,9 @@ export function AdminCountForm({ entry }: Props) {
                     min={0}
                     name={`${period}_right_${category.key}`}
                     defaultValue={saved.periods[period].right[category.key] ?? ''}
-                    autoComplete="off"
+                    {...ignorePasswordManagerProps}
                     data-testid={`admin-${period}-right-${category.key}`}
+                    onChange={(event) => handlePeriodInputChange(event.currentTarget.form!, period)}
                   />
                 </Field>
               </div>
@@ -158,7 +189,7 @@ export function AdminCountForm({ entry }: Props) {
 
       <Field>
         <Label>Match-ID</Label>
-        <Input name="match_id" defaultValue={saved.match_id} autoComplete="off" />
+        <Input name="match_id" defaultValue={saved.match_id} {...ignorePasswordManagerProps} />
       </Field>
       <Field>
         <Label>Match-Status</Label>
@@ -172,7 +203,12 @@ export function AdminCountForm({ entry }: Props) {
 
       <Field>
         <Label>Notiz</Label>
-        <Textarea name="note" rows={3} defaultValue={saved.note ?? ''} />
+        <Textarea
+          name="note"
+          rows={3}
+          defaultValue={saved.note ?? ''}
+          {...ignorePasswordManagerProps}
+        />
       </Field>
 
       {!auth.authenticated ? <Callout>{osmLoginRequiredMessage}</Callout> : null}

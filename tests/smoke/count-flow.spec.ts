@@ -1,4 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Creates a project via the "+" reveal next to "Projekt auswählen", then selects
+ * the given edges fixture file for it (the import target is always the selected
+ * project — there is no free-text name field on the import side anymore).
+ */
+async function createProjectAndStageFile(page: Page, name: string, fixturePath: string) {
+  await page.getByTestId('create-project-toggle').click()
+  await page.getByTestId('dataset-name-input').fill(name)
+  await page.getByTestId('create-project').click()
+  await expect(page.getByTestId('dataset-row-' + name)).toBeVisible()
+  await page.getByTestId('edges-file-input').setInputFiles(fixturePath)
+}
 
 const kvOrigin = 'https://key-value-store.fixmycity.workers.dev'
 
@@ -132,10 +145,11 @@ test.describe('counting flow', () => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Parkraum-Zählung' })).toBeVisible()
 
-    await page
-      .getByTestId('edges-file-input')
-      .setInputFiles('public/fixtures/loerrach-sample.geojson')
-    await expect(page.getByTestId('dataset-name-input')).toHaveValue('loerrach-sample')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
     await page.getByTestId('import-dataset').click()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
@@ -160,9 +174,11 @@ test.describe('counting flow', () => {
 
   test('opens the count database page and edits a row', async ({ page }) => {
     await page.goto('/')
-    await page
-      .getByTestId('edges-file-input')
-      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
     await page.getByTestId('import-dataset').click()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
     await page.getByTestId('edge-list-ce-basler-nord').click()
@@ -187,9 +203,11 @@ test.describe('counting flow', () => {
     page,
   }) => {
     await page.goto('/')
-    await page
-      .getByTestId('edges-file-input')
-      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
     await page.getByTestId('import-dataset').click()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
@@ -215,11 +233,35 @@ test.describe('counting flow', () => {
     await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
   })
 
+  test('a period hotkey keeps focus on the same side+category cell instead of jumping', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
+    await page.getByTestId('import-dataset').click()
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+
+    const rightMotorrad = page.getByTestId('sunday-right-motorrad')
+    await rightMotorrad.click()
+    await expect(rightMotorrad).toBeFocused()
+
+    await page.keyboard.press('d')
+    await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByTestId('midday-right-motorrad')).toBeFocused()
+  })
+
   test('keeps a multiline note after switching edges and back', async ({ page }) => {
     await page.goto('/')
-    await page
-      .getByTestId('edges-file-input')
-      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
     await page.getByTestId('import-dataset').click()
     await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
 
@@ -235,5 +277,110 @@ test.describe('counting flow', () => {
     await page.getByTestId('edge-list-ce-basler-nord').click()
     await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
     await expect(note).toHaveValue('Zeile 1\nZeile 2')
+  })
+
+  test('selecting a remote-only project stays on the dataset step', async ({ page }) => {
+    await page.goto('/')
+    // Seed a project that exists only in the KV store (no local edges in this browser).
+    await page.evaluate(async () => {
+      await fetch(
+        'https://key-value-store.fixmycity.workers.dev/v1/projects/parkraum-zaehlung/entries/loerrach%2Fce-basler-nord',
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: {
+              periods: {
+                sunday: {
+                  left: { pkw: 3, motorrad: null, lkw_bus: null },
+                  right: { pkw: null, motorrad: null, lkw_bus: null },
+                },
+                midday: {
+                  left: { pkw: null, motorrad: null, lkw_bus: null },
+                  right: { pkw: null, motorrad: null, lkw_bus: null },
+                },
+                evening: {
+                  left: { pkw: null, motorrad: null, lkw_bus: null },
+                  right: { pkw: null, motorrad: null, lkw_bus: null },
+                },
+              },
+              updated_at: '2026-01-01T00:00:00.000Z',
+              counted_at: '2026-01-01T00:00:00.000Z',
+              match_id: 'ce-basler-nord',
+              match_status: 'id',
+              mid_lat: 0,
+              mid_lng: 0,
+            },
+            tags: ['loerrach'],
+          }),
+        },
+      )
+    })
+    await page.reload()
+
+    await expect(page.getByTestId('dataset-row-loerrach')).toBeVisible()
+    await page.getByTestId('dataset-row-loerrach').click()
+
+    // No local edges for "loerrach": selecting it must not jump to the count step —
+    // the dataset-step Callout (only rendered by DatasetPanel) stays visible.
+    await expect(page.getByText('Nur in der Zähl-Datenbank')).toBeVisible()
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toHaveCount(0)
+  })
+
+  test('importing edges under an existing remote-only project name links them to its counts', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    // Seed a project that exists only in the KV store, with one existing count entry.
+    await page.evaluate(async () => {
+      await fetch(
+        'https://key-value-store.fixmycity.workers.dev/v1/projects/parkraum-zaehlung/entries/loerrach%2Fce-basler-nord',
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: {
+              periods: {
+                sunday: {
+                  left: { pkw: 3, motorrad: null, lkw_bus: null },
+                  right: { pkw: 2, motorrad: null, lkw_bus: null },
+                },
+                midday: {
+                  left: { pkw: null, motorrad: null, lkw_bus: null },
+                  right: { pkw: null, motorrad: null, lkw_bus: null },
+                },
+                evening: {
+                  left: { pkw: null, motorrad: null, lkw_bus: null },
+                  right: { pkw: null, motorrad: null, lkw_bus: null },
+                },
+              },
+              updated_at: '2026-01-01T00:00:00.000Z',
+              counted_at: '2026-01-01T00:00:00.000Z',
+              match_id: 'ce-basler-nord',
+              match_status: 'id',
+              mid_lat: 0,
+              mid_lng: 0,
+            },
+            tags: ['loerrach'],
+          }),
+        },
+      )
+    })
+    await page.reload()
+
+    await expect(page.getByTestId('dataset-row-loerrach')).toBeVisible()
+    await page.getByTestId('dataset-row-loerrach').click()
+    await expect(page.getByText('Nur in der Zähl-Datenbank')).toBeVisible()
+
+    // Import the sample edges file under the same project name — no name field to
+    // fill in, the file's own metadata name is overridden by the selected project.
+    await expect(page.getByTestId('import-dataset')).toBeDisabled()
+    await page
+      .getByTestId('edges-file-input')
+      .setInputFiles('public/fixtures/loerrach-sample.geojson')
+    await page.getByTestId('import-dataset').click()
+
+    // Edges now show up, and the existing count carried over.
+    await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
   })
 })

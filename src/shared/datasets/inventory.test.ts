@@ -61,6 +61,20 @@ describe('buildDatasetInventory', () => {
   })
 })
 
+describe('buildDatasetInventory with meta-only projects', () => {
+  it('includes a project that only has a meta entry (0 counts, no local edges)', () => {
+    const rows = buildDatasetInventory([], [{ dataset: 'both', entryCount: 2 }], {}, [
+      'meta-only',
+      'both',
+    ])
+    expect(rows.map((row) => row.dataset)).toEqual(['both', 'meta-only'])
+    expect(rows.find((row) => row.dataset === 'meta-only')).toMatchObject({
+      local: false,
+      remoteEntryCount: 0,
+    })
+  })
+})
+
 describe('datasetInventoryCopy', () => {
   it('describes a remote-only dataset', () => {
     expect(

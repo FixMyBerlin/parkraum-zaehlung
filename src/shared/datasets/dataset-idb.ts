@@ -1,4 +1,4 @@
-import { get, keys, set } from 'idb-keyval'
+import { del, get, keys, set } from 'idb-keyval'
 import { z } from 'zod'
 import { edgesCollectionSchema, type CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
@@ -27,6 +27,11 @@ function parseStoredDataset(value: unknown): StoredDataset | undefined {
   return parsed.success ? parsed.data : undefined
 }
 
+/** `null`, never `undefined` — TanStack Query rejects `undefined` query data. */
+function toQueryResult(value: StoredDataset | undefined): StoredDataset | null {
+  return value ?? null
+}
+
 export async function saveDataset(collection: CountingEdgesGeoJSON, dataset: string) {
   const stored: StoredDataset = {
     dataset,
@@ -40,8 +45,8 @@ export async function saveDataset(collection: CountingEdgesGeoJSON, dataset: str
   return stored
 }
 
-export async function loadDataset(dataset: string) {
-  return parseStoredDataset(await get(keyFor(dataset)))
+export async function loadDataset(dataset: string): Promise<StoredDataset | null> {
+  return toQueryResult(parseStoredDataset(await get(keyFor(dataset))))
 }
 
 export async function listDatasets() {
@@ -51,4 +56,21 @@ export async function listDatasets() {
   )
   const stored = await Promise.all(datasetKeys.map((key) => get(key)))
   return stored.map(parseStoredDataset).filter((item): item is StoredDataset => item != null)
+}
+
+/** Deletes this browser's local edges for a project. No-op if none are stored. */
+export async function deleteDataset(dataset: string) {
+  await del(keyFor(dataset))
+}
+
+/**
+ * Moves the local edges from `oldDataset` to `newDataset` (metadata.dataset updated
+ * to match). No-op if `oldDataset` has no local edges. Not atomic: on failure the old
+ * entry may remain — safe to re-run.
+ */
+export async function renameDataset(oldDataset: string, newDataset: string) {
+  const stored = await loadDataset(oldDataset)
+  if (!stored) return
+  await saveDataset(stored.collection, newDataset)
+  await del(keyFor(oldDataset))
 }

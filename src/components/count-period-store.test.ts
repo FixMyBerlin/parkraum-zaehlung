@@ -26,4 +26,33 @@ describe('count period store', () => {
     // form remounts by key: none of that touches this store, so the period stands.
     expect(countPeriodStoreForTests.getState().activePeriod).toBe('evening')
   })
+
+  test('periodHasData defaults to false for every period', () => {
+    expect(countPeriodStoreForTests.getState().periodHasData).toEqual({
+      sunday: false,
+      midday: false,
+      evening: false,
+    })
+  })
+
+  test('setPeriodHasData flips a single period without touching the others', () => {
+    countPeriodStoreForTests.getState().actions.setPeriodHasData('midday', true)
+    expect(countPeriodStoreForTests.getState().periodHasData).toEqual({
+      sunday: false,
+      midday: true,
+      evening: false,
+    })
+  })
+
+  test('resetPeriodHasData re-seeds all three at once, e.g. from a newly opened edge', () => {
+    countPeriodStoreForTests.getState().actions.setPeriodHasData('midday', true)
+    countPeriodStoreForTests
+      .getState()
+      .actions.resetPeriodHasData({ sunday: true, midday: false, evening: true })
+    expect(countPeriodStoreForTests.getState().periodHasData).toEqual({
+      sunday: true,
+      midday: false,
+      evening: true,
+    })
+  })
 })

@@ -32,8 +32,59 @@ function withoutUnlocatedFeatures(raw: unknown): unknown {
   return { ...parsed.data, features: parsed.data.features.filter(isLineStringFeature) }
 }
 
+/**
+ * Loose shape of a counts export (`countsFileSchema` in `@/shared/counts/schema`),
+ * duplicated here (not imported) to keep this module from depending on the counts
+ * schema just to detect a misplaced file.
+ */
+const looseCountsExportShape = z
+  .object({ dataset: z.string(), records: z.record(z.string(), z.unknown()) })
+  .loose()
+
+function isCountsExportShape(raw: unknown): boolean {
+  return looseCountsExportShape.safeParse(raw).success
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** First few zod issue paths, compact, so the UI never has to show raw zod JSON. */
+function summarizeIssuePaths(error: z.ZodError): string {
+  return error.issues
+    .slice(0, 3)
+    .map((issue) => (issue.path.length > 0 ? issue.path.join('.') : '(Wurzel)'))
+    .join(', ')
+}
+
+/** Maps a failed `edgesCollectionSchema.parse` into a readable German message. */
+function friendlyEdgesParseError(raw: unknown, error: unknown): Error {
+  if (isCountsExportShape(raw)) {
+    return new Error(
+      'Das ist ein Zählungs-Export (Datei mit „dataset“ und „records“), keine Kanten-Datei. Zählungen werden im Schritt „Export“ importiert.',
+    )
+  }
+  if (!isPlainObject(raw) || raw.type !== 'FeatureCollection') {
+    return new Error('Datei ist keine GeoJSON-FeatureCollection mit Kanten (parkings_edges).')
+  }
+  if (!Array.isArray(raw.features) || raw.features.length === 0) {
+    return new Error('Datei enthält keine Kanten (features fehlt oder ist leer).')
+  }
+  if (error instanceof z.ZodError) {
+    return new Error(
+      `Kanten-Datei entspricht nicht dem erwarteten Format (Details: ${summarizeIssuePaths(error)}).`,
+    )
+  }
+  return new Error('Kanten-Datei entspricht nicht dem erwarteten Format.')
+}
+
 export function parseEdgesJson(raw: unknown, fallbackDataset?: string) {
-  const parsed = edgesCollectionSchema.parse(withoutUnlocatedFeatures(raw))
+  let parsed: CountingEdgesGeoJSON
+  try {
+    parsed = edgesCollectionSchema.parse(withoutUnlocatedFeatures(raw))
+  } catch (error) {
+    throw friendlyEdgesParseError(raw, error)
+  }
   const fromMeta = parsed.metadata?.dataset?.trim()
   const dataset = fallbackDataset ?? (fromMeta ? slugifyDatasetName(fromMeta) : undefined)
   if (!dataset) {

@@ -1,15 +1,21 @@
 import { useHotkeys } from '@tanstack/react-hotkeys'
 import type { Position } from 'geojson'
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import { useActiveCountPeriod } from '@/components/count-period-store'
+import { useActiveCountPeriod, useCountPeriodActions } from '@/components/count-period-store'
 import { CountPeriodToggle } from '@/components/CountPeriodToggle'
 import { useMapBearing, useMapUiActions } from '@/components/shared/map-ui-store'
 import { cn } from '@/shared/cn'
 import { countFieldTabOrder } from '@/shared/counts/count-field-tab-order'
 import { firstUncountedSide } from '@/shared/counts/focus-side'
-import { countPeriods, type CountPeriod, type CountRecord } from '@/shared/counts/schema'
+import {
+  countPeriods,
+  isPeriodSideCounted,
+  type CountPeriod,
+  type CountRecord,
+} from '@/shared/counts/schema'
 import { useTextEntryFocused } from '@/shared/dom/text-entry-focus'
 import { screenOrderedSides } from '@/shared/edges/way-side-order'
+import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
 import { EDGE_SIDE_LINE_COLOR } from '@/shared/map/edge-side-style'
 
 type Side = 'left' | 'right'
@@ -65,8 +71,17 @@ export function CountGrid({
   const mapBearing = useMapBearing()
   const { setFocusedCountSide } = useMapUiActions()
   const activePeriod = useActiveCountPeriod()
+  const { setPeriodHasData, resetPeriodHasData } = useCountPeriodActions()
   const textEntryFocused = useTextEntryFocused()
   const fieldRefs = useRef(new Map<string, HTMLInputElement>())
+  // The side+category last focused by the user, kept across period switches so
+  // pressing E/D/C (or clicking a segment) returns focus to the same cell instead
+  // of jumping to the first uncounted field. Reset to null on every edge (a new
+  // `CountGrid` instance, since the parent remounts this by key).
+  const lastFocusedFieldRef = useRef<{
+    side: Side
+    categoryKey: (typeof categories)[number]['key']
+  } | null>(null)
 
   const columns = screenOrderedSides(coordinates, mapBearing)
 
@@ -104,11 +119,52 @@ export function CountGrid({
     focusField(activePeriod, next.side, next.key)
   }
 
+  /** Does any of the period's 6 inputs currently hold a value, read live from the DOM? */
+  function periodHasAnyInputValue(period: CountPeriod) {
+    return (['left', 'right'] as const).some((side) =>
+      categories.some((category) => {
+        const field = fieldRefs.current.get(fieldKey(period, side, category.key))
+        return Boolean(field && field.value !== '')
+      }),
+    )
+  }
+
+  function handleCountInputChange(period: CountPeriod) {
+    setPeriodHasData(period, periodHasAnyInputValue(period))
+  }
+
+  function periodSavedHasData(period: CountPeriod) {
+    if (!saved) return false
+    return isPeriodSideCounted(saved, period, 'left') || isPeriodSideCounted(saved, period, 'right')
+  }
+
+  useEffect(
+    function seedPeriodDataIndicatorFromSaved() {
+      // Runs once per mounted edge only — this seeds the toggle's data indicator from
+      // the last saved state; live typing updates it via `handleCountInputChange`.
+      resetPeriodHasData({
+        sunday: periodSavedHasData('sunday'),
+        midday: periodSavedHasData('midday'),
+        evening: periodSavedHasData('evening'),
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
+
   useEffect(
     function focusFirstUncountedColumnForActivePeriod() {
       // Drop the previous highlight first: on a fully counted column nothing takes
       // focus, so the map would keep thickening a side nobody is editing.
       setFocusedCountSide(null)
+      const lastFocused = lastFocusedFieldRef.current
+      if (lastFocused) {
+        // A count input was focused before this switch (hotkey/segment click): keep
+        // editing the same cell in the newly active period instead of jumping around.
+        focusField(activePeriod, lastFocused.side, lastFocused.categoryKey)
+        return
+      }
+      // Fresh edge mount, nothing focused yet: fall back to the first uncounted field.
       const side = firstUncountedSide(columns, disabledSides, saved, activePeriod)
       if (!side) return
       focusField(activePeriod, side, categories[0].key)
@@ -194,7 +250,7 @@ export function CountGrid({
                           min={0}
                           step={1}
                           inputMode="numeric"
-                          autoComplete="off"
+                          {...ignorePasswordManagerProps}
                           defaultValue={saved?.periods[period][side][category.key] ?? ''}
                           aria-labelledby={`${formId}-${period}-${category.key} ${formId}-${side}`}
                           aria-keyshortcuts={
@@ -206,7 +262,9 @@ export function CountGrid({
                           className={countInputClassName(side)}
                           data-testid={`${period}-${side}-${category.key}`}
                           onKeyDown={(event) => handleCountInputTab(event, side, category.key)}
+                          onChange={() => handleCountInputChange(period)}
                           onFocus={(event) => {
+                            lastFocusedFieldRef.current = { side, categoryKey: category.key }
                             setFocusedCountSide(side)
                             event.currentTarget.select()
                           }}
