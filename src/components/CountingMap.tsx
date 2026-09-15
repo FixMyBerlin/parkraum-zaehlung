@@ -1,20 +1,26 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { MapLayerMouseEvent, MapLibreEvent } from 'maplibre-gl'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@/shared/map/maplibre-worker'
 import {
   AttributionControl,
   Layer,
   Map,
+  Marker,
   Source,
   useMap,
+  type MarkerDragEvent,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
 import { MapBackgroundLayerControl } from '@/components/MapBackgroundLayerControl'
 import { MapBackgroundLayerSource } from '@/components/MapBackgroundLayerSource'
 import { MapResetNorthPitchButton } from '@/components/MapResetNorthPitchButton'
+import {
+  useManualPointFlush,
+  useManualPointSaveLocation,
+} from '@/components/shared/manual-point-drag-store'
 import {
   useFocusedCountSide,
   useHoveredEdgeId,
@@ -23,12 +29,20 @@ import {
 } from '@/components/shared/map-ui-store'
 import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
 import { useAssignMatch } from '@/components/shared/use-assign-match'
+import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { tildaParkingsTileset, tildaTilesUrl } from '@/config/app.const'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
-import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
+import { countRecordFromFormData } from '@/shared/counts/count-from-form'
+import {
+  allCountsQueryKey,
+  countsQueryKey,
+  countStore,
+  datasetSummariesQueryKey,
+} from '@/shared/counts/counts-query'
+import { isManualRecord, newManualPointId } from '@/shared/counts/manual-points'
 import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
-import { countPeriods } from '@/shared/counts/schema'
+import { countedSides, countPeriods, type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import { decorateEdges } from '@/shared/edges/decorate-edges'
 import {
@@ -38,6 +52,14 @@ import {
   edgeSideLineWidth,
 } from '@/shared/map/edge-side-style'
 import { exposeMainMapForDebugging } from '@/shared/map/expose-main-map'
+import {
+  MANUAL_POINT_CORE_RADIUS_AT_Z14,
+  MANUAL_POINT_CORE_RADIUS_AT_Z20,
+  MANUAL_POINT_HALO_RADIUS_AT_Z14,
+  MANUAL_POINT_HALO_RADIUS_AT_Z20,
+  MANUAL_POINT_SELECTED_RADIUS_AT_Z14,
+  MANUAL_POINT_SELECTED_RADIUS_AT_Z20,
+} from '@/shared/map/manual-point-style'
 import {
   EDGES_ARROWS_LAYER_ID,
   EDGES_ID_LABELS_LAYER_ID,
@@ -51,11 +73,16 @@ import {
   EDGES_SELECTED_LAYER_ID,
   EDGES_SOURCE_ID,
   MAIN_MAP_ID,
+  MANUAL_POINTS_CORE_LAYER_ID,
+  MANUAL_POINTS_HALO_LAYER_ID,
+  MANUAL_POINTS_SELECTED_LAYER_ID,
+  MANUAL_POINTS_SOURCE_ID,
   MATCH_POINT_LAYER_ID,
   MATCH_POINT_SOURCE_ID,
   PARKINGS_LAYER_ID,
   PARKINGS_SOURCE_ID,
   interactiveEdgeLayerIds,
+  interactiveManualPointLayerIds,
 } from '@/shared/map/map-ids'
 import { resolveStep } from '@/shared/routing/app-step'
 import { searchMapParam, serializeIndexSearchMap } from '@/shared/routing/search-schema'
@@ -70,16 +97,32 @@ export function CountingMap() {
   const currentStep = resolveStep(search)
   const matchMode = currentStep === 'dataset' && Boolean(matchId)
   const { assign } = useAssignMatch(dataset)
+  const auth = useOsmAuth()
+  const queryClient = useQueryClient()
   const hoveredEdgeId = useHoveredEdgeId()
   const hoveredSide = useHoveredSide()
   const focusedCountSide = useFocusedCountSide()
   const { setHover, setMapBearing, setMapPitch } = useMapUiActions()
+  const manualPointFlush = useManualPointFlush()
+  const manualPointSaveLocation = useManualPointSaveLocation()
   const sideLineArgs = {
     hoveredEdgeId,
     hoveredSide,
     focusedCountSide,
     selectedEdgeId: edge,
   }
+
+  // "Punkt setzen": click-to-place mode for manual points, plus the live drag position
+  // of the selected point while its Marker is being dragged (see the "Move" section of
+  // the manual-points plan — no separate edit mode, just move-while-selected). Carries
+  // its own point id so a stale position from a previous selection is simply ignored
+  // once the selection moves on, rather than needing an effect to reset it.
+  const [drawMode, setDrawMode] = useState(false)
+  const [dragPosition, setDragPosition] = useState<{
+    id: string
+    lng: number
+    lat: number
+  } | null>(null)
 
   const edgesQuery = useQuery({
     queryKey: ['dataset', dataset],
@@ -93,6 +136,57 @@ export function CountingMap() {
   })
 
   const records = countsQuery.data ?? {}
+
+  const placePointMutation = useMutation({
+    mutationFn: async ({ lng, lat }: { lng: number; lat: number }) => {
+      if (!dataset) throw new Error('Kein Datensatz')
+      const id = newManualPointId()
+      const record = countRecordFromFormData(new FormData(), {
+        updatedBy: auth.displayName,
+        lng,
+        lat,
+      })
+      await countStore.put(dataset, id, record)
+      return { id, record }
+    },
+    onSuccess: ({ id, record }) => {
+      setDrawMode(false)
+      queryClient.setQueryData<Record<string, CountRecord>>(
+        countsQueryKey(dataset ?? ''),
+        (current) => ({ ...current, [id]: record }),
+      )
+      void queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset ?? '') })
+      void queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
+      void navigate({
+        search: (previous) => ({ ...previous, edge: id, step: 'count' }),
+        replace: true,
+      })
+    },
+  })
+
+  const manualPoints = Object.entries(records)
+    .filter(([, record]) => isManualRecord(record))
+    .map(([id, record]) => ({ id, record }))
+  const selectedManualPoint = manualPoints.find((point) => point.id === edge)
+  const manualPointsGeojson = {
+    type: 'FeatureCollection' as const,
+    features: manualPoints.map(({ id, record }) => {
+      const dragged = dragPosition && dragPosition.id === id ? dragPosition : null
+      const sides = countedSides(record)
+      const countState = sides === 0 ? 'uncounted' : sides === 2 ? 'full' : 'partial'
+      return {
+        type: 'Feature' as const,
+        id,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [dragged?.lng ?? record.mid_lng, dragged?.lat ?? record.mid_lat],
+        },
+        properties: { id, count_state: countState },
+      }
+    }),
+  }
+
   const collection = edgesQuery.data?.collection
   const matchResult = collection
     ? matchCountsToEdges(records, edgeMatchInputs(collection))
@@ -122,9 +216,29 @@ export function CountingMap() {
         }
       : undefined
 
-  function featureIdFromEvent(event: MapLayerMouseEvent) {
-    const feature = event.features?.[0]
-    const id = feature?.properties?.id
+  // Both edge and manual-point layers sit in `interactiveLayerIds`, so a click or
+  // hover can hit either kind (or both, stacked) — these look up each kind by its own
+  // layer ids rather than trusting `features[0]`'s order, then callers prefer a point
+  // over an edge when both are present (see the map section of the manual-points plan).
+  function manualPointFeatureFromEvent(event: MapLayerMouseEvent) {
+    return event.features?.find((feature) =>
+      (interactiveManualPointLayerIds as readonly string[]).includes(feature.layer.id),
+    )
+  }
+
+  function edgeFeatureFromEvent(event: MapLayerMouseEvent) {
+    return event.features?.find((feature) =>
+      (interactiveEdgeLayerIds as readonly string[]).includes(feature.layer.id),
+    )
+  }
+
+  function manualPointIdFromEvent(event: MapLayerMouseEvent) {
+    const id = manualPointFeatureFromEvent(event)?.properties?.id
+    return typeof id === 'string' ? id : null
+  }
+
+  function edgeIdFromEvent(event: MapLayerMouseEvent) {
+    const id = edgeFeatureFromEvent(event)?.properties?.id
     return typeof id === 'string' ? id : null
   }
 
@@ -157,8 +271,8 @@ export function CountingMap() {
         }}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
-        cursor={hoveredSide ? 'pointer' : ''}
-        interactiveLayerIds={[...interactiveEdgeLayerIds]}
+        cursor={drawMode ? 'crosshair' : hoveredSide ? 'pointer' : ''}
+        interactiveLayerIds={[...interactiveEdgeLayerIds, ...interactiveManualPointLayerIds]}
         onLoad={(event: MapLibreEvent) => {
           exposeMainMapForDebugging(event.target)
           setMapBearing(event.target.getBearing())
@@ -187,14 +301,49 @@ export function CountingMap() {
           })
         }}
         onMouseMove={(event: MapLayerMouseEvent) => {
-          const id = featureIdFromEvent(event)
-          setHover(id, id ? sideFromLayer(event.features?.[0]?.layer?.id) : null)
+          if (manualPointFeatureFromEvent(event)) {
+            // A point's own hover has no left/right side — 'center' just needs to be
+            // truthy so the cursor turns into a pointer, same as hovering an edge's line.
+            setHover(manualPointIdFromEvent(event), 'center')
+            return
+          }
+          const edgeFeature = edgeFeatureFromEvent(event)
+          const id =
+            typeof edgeFeature?.properties?.id === 'string' ? edgeFeature.properties.id : null
+          setHover(id, id ? sideFromLayer(edgeFeature?.layer.id) : null)
         }}
         onMouseLeave={() => {
           setHover(null, null)
         }}
         onClick={(event: MapLayerMouseEvent) => {
-          const id = featureIdFromEvent(event)
+          if (drawMode) {
+            if (placePointMutation.isPending) return
+            const pointId = manualPointIdFromEvent(event)
+            if (pointId) {
+              setDrawMode(false)
+              void navigate({
+                search: (previous) => ({ ...previous, edge: pointId, step: 'count' }),
+                replace: true,
+              })
+              return
+            }
+            // Clicked an edge while placing: stay in draw mode, do nothing else.
+            if (edgeIdFromEvent(event)) return
+            if (!dataset || !auth.authenticated) return
+            placePointMutation.mutate({ lng: event.lngLat.lng, lat: event.lngLat.lat })
+            return
+          }
+
+          const pointId = manualPointIdFromEvent(event)
+          if (pointId) {
+            void navigate({
+              search: (previous) => ({ ...previous, edge: pointId, step: 'count' }),
+              replace: true,
+            })
+            return
+          }
+
+          const id = edgeIdFromEvent(event)
           if (!id) return
           if (matchMode && matchId) {
             assign.mutate({ originalId: matchId, matchId: id, status: 'manual' })
@@ -388,6 +537,133 @@ export function CountingMap() {
             }}
           />
         ) : null}
+        {/* Mounted with an empty FeatureCollection when there are no manual points yet,
+          rather than unmounting the source — see the map section of the manual-points
+          plan. Rendered last so the points paint on top of the edge layers above. */}
+        <Source
+          id={MANUAL_POINTS_SOURCE_ID}
+          type="geojson"
+          data={manualPointsGeojson}
+          promoteId="id"
+        />
+        <Layer
+          id={MANUAL_POINTS_SELECTED_LAYER_ID}
+          type="circle"
+          source={MANUAL_POINTS_SOURCE_ID}
+          filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
+          paint={{
+            'circle-radius': [
+              'interpolate',
+              ['exponential', 2],
+              ['zoom'],
+              14,
+              MANUAL_POINT_SELECTED_RADIUS_AT_Z14,
+              20,
+              MANUAL_POINT_SELECTED_RADIUS_AT_Z20,
+            ],
+            'circle-color': '#f8fafc',
+            'circle-opacity': 0.35,
+            'circle-pitch-alignment': 'map',
+          }}
+        />
+        {/* Halo is the click/drag hit target (~8 m); core is roughly one parked car
+          (~2–3 m) — same completeness palette as the counting-edges line layer. */}
+        <Layer
+          id={MANUAL_POINTS_HALO_LAYER_ID}
+          type="circle"
+          source={MANUAL_POINTS_SOURCE_ID}
+          paint={{
+            'circle-radius': [
+              'interpolate',
+              ['exponential', 2],
+              ['zoom'],
+              14,
+              MANUAL_POINT_HALO_RADIUS_AT_Z14,
+              20,
+              MANUAL_POINT_HALO_RADIUS_AT_Z20,
+            ],
+            'circle-color': [
+              'match',
+              ['get', 'count_state'],
+              'full',
+              '#22c55e',
+              'partial',
+              '#eab308',
+              '#64748b',
+            ],
+            'circle-opacity': 0.25,
+            'circle-pitch-alignment': 'map',
+          }}
+        />
+        <Layer
+          id={MANUAL_POINTS_CORE_LAYER_ID}
+          type="circle"
+          source={MANUAL_POINTS_SOURCE_ID}
+          paint={{
+            'circle-radius': [
+              'interpolate',
+              ['exponential', 2],
+              ['zoom'],
+              14,
+              MANUAL_POINT_CORE_RADIUS_AT_Z14,
+              20,
+              MANUAL_POINT_CORE_RADIUS_AT_Z20,
+            ],
+            'circle-color': [
+              'match',
+              ['get', 'count_state'],
+              'full',
+              '#22c55e',
+              'partial',
+              '#eab308',
+              '#64748b',
+            ],
+            'circle-opacity': 0.95,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#f8fafc',
+            'circle-pitch-alignment': 'map',
+          }}
+        />
+        {/* <Marker> reads its map from react-map-gl's internal render-time context,
+          which only exists inside <Map>...</Map> — unlike useMap()/<FlyToSelectedMatch>
+          below, it cannot be mounted as a sibling after the closing tag. */}
+        {selectedManualPoint && !matchMode ? (
+          <Marker
+            longitude={
+              dragPosition?.id === selectedManualPoint.id
+                ? dragPosition.lng
+                : selectedManualPoint.record.mid_lng
+            }
+            latitude={
+              dragPosition?.id === selectedManualPoint.id
+                ? dragPosition.lat
+                : selectedManualPoint.record.mid_lat
+            }
+            draggable
+            onDragStart={() => {
+              void manualPointFlush?.()
+            }}
+            onDrag={(event: MarkerDragEvent) => {
+              setDragPosition({
+                id: selectedManualPoint.id,
+                lng: event.lngLat.lng,
+                lat: event.lngLat.lat,
+              })
+            }}
+            onDragEnd={(event: MarkerDragEvent) => {
+              const { lng, lat } = event.lngLat
+              setDragPosition(null)
+              void manualPointSaveLocation?.(lng, lat)
+            }}
+          >
+            <div
+              aria-hidden="true"
+              data-testid="manual-point-marker"
+              className="size-4 cursor-grab rounded-full ring-2 ring-white active:cursor-grabbing"
+              style={{ backgroundColor: manualPointMarkerColor(selectedManualPoint.record) }}
+            />
+          </Marker>
+        ) : null}
       </Map>
       {selectedMatch ? (
         <FlyToSelectedMatch
@@ -400,9 +676,29 @@ export function CountingMap() {
         <MapResetNorthPitchButton />
         <MapBackgroundLayerControl bg={bg ?? null} lat={map.lat} lng={map.lng} />
         <ParkingsLayerToggle parkings={parkings} />
+        {currentStep === 'count' && dataset ? (
+          <PlacePointToggle
+            active={drawMode}
+            disabled={!auth.authenticated}
+            onToggle={() => setDrawMode((previous) => !previous)}
+          />
+        ) : null}
+        {placePointMutation.isError ? (
+          <p
+            className="max-w-52 rounded-lg bg-red-950/90 px-3 py-2 text-xs text-red-200 shadow-lg ring-1 ring-red-500/40"
+            data-testid="place-point-error"
+          >
+            Punkt konnte nicht gespeichert werden.
+          </p>
+        ) : null}
       </div>
     </div>
   )
+}
+
+function manualPointMarkerColor(record: CountRecord) {
+  const sides = countedSides(record)
+  return sides === 0 ? '#64748b' : sides === 2 ? '#22c55e' : '#eab308'
 }
 
 function FlyToSelectedMatch({ keyId, lng, lat }: { keyId: string; lng: number; lat: number }) {
@@ -441,6 +737,38 @@ function ParkingsLayerToggle({ parkings }: { parkings: boolean }) {
         }
       >
         TILDA-Parkraum
+      </button>
+    </Tooltip>
+  )
+}
+
+function PlacePointToggle({
+  active,
+  disabled,
+  onToggle,
+}: {
+  active: boolean
+  disabled: boolean
+  onToggle: () => void
+}) {
+  return (
+    <Tooltip text="Klick auf die Karte legt einen neuen Zählpunkt ohne Kante an.">
+      <button
+        type="button"
+        aria-pressed={active}
+        aria-label="Punkt setzen"
+        disabled={disabled}
+        data-testid="place-point-toggle"
+        className={cn(
+          'rounded-lg px-3 py-2 text-xs font-medium shadow-lg ring-1',
+          active
+            ? 'bg-sky-500 text-zinc-950 ring-sky-300'
+            : 'bg-zinc-900/90 text-white ring-white/10 hover:bg-zinc-800',
+          disabled && 'cursor-not-allowed opacity-50',
+        )}
+        onClick={onToggle}
+      >
+        Punkt setzen
       </button>
     </Tooltip>
   )

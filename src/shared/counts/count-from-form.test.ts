@@ -87,6 +87,43 @@ describe('countRecordFromFormData', () => {
       lkw_bus: null,
     })
   })
+
+  it('creates a manual point from lng/lat, with match_status none and source manual', () => {
+    const record = countRecordFromFormData(formData({ sunday_left_pkw: '2' }), {
+      updatedBy: 'tordans',
+      lng: 7.66,
+      lat: 47.61,
+    })
+    expect(record.source).toBe('manual')
+    expect(record.created_by).toBe('tordans')
+    expect(record.match_id).toBe('')
+    expect(record.match_status).toBe('none')
+    expect(record.mid_lng).toBe(7.66)
+    expect(record.mid_lat).toBe(47.61)
+    expect(record.counted_at).toBe(record.updated_at)
+  })
+
+  it('freezes source and created_by from the existing record, even if the form tries to change them', () => {
+    const existing = emptyCountRecord('2026-01-01T00:00:00.000Z', {
+      match_id: '',
+      match_status: 'none',
+      mid_lat: 47.61,
+      mid_lng: 7.66,
+      source: 'manual',
+      created_by: 'alice',
+    })
+    const record = countRecordFromFormData(formData({ note: 'moved' }), {
+      existing,
+      updatedBy: 'bob',
+    })
+    expect(record.source).toBe('manual')
+    expect(record.created_by).toBe('alice')
+    expect(record.updated_by).toBe('bob')
+  })
+
+  it('throws when neither an edge nor a lng/lat is given for a new record', () => {
+    expect(() => countRecordFromFormData(formData({}))).toThrow()
+  })
 })
 
 function occupancy(overrides: Partial<Occupancy> = {}): Occupancy {

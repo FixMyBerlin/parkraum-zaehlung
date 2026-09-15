@@ -32,6 +32,19 @@ export const EDGES_RIGHT_PERIOD_LAYER_IDS = Object.values(EDGES_RIGHT_PERIOD_LAY
 export const PARKINGS_SOURCE_ID = 'tilda-parkings'
 export const PARKINGS_LAYER_ID = 'tilda-parkings-line'
 
+// Manually placed count points (no edge). Kept mounted with an empty FeatureCollection
+// when there are none, and rendered after the edge layers so they stack on top.
+export const MANUAL_POINTS_SOURCE_ID = 'manual-points'
+export const MANUAL_POINTS_SELECTED_LAYER_ID = 'manual-points-selected'
+export const MANUAL_POINTS_HALO_LAYER_ID = 'manual-points-halo'
+export const MANUAL_POINTS_CORE_LAYER_ID = 'manual-points-core'
+
+/** Both the halo and the core are clickable — the halo is the generous hit target. */
+export const interactiveManualPointLayerIds = [
+  MANUAL_POINTS_HALO_LAYER_ID,
+  MANUAL_POINTS_CORE_LAYER_ID,
+] as const
+
 export const BACKGROUND_SOURCE_ID = 'eli-background'
 export const BACKGROUND_LAYER_ID = 'eli-background'
 

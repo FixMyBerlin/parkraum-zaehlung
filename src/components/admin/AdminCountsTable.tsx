@@ -52,6 +52,7 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
           <TableHeader>Projekt</TableHeader>
           <TableHeader>Kante</TableHeader>
           <TableHeader data-testid="admin-col-match">Zuordnung</TableHeader>
+          <TableHeader>Herkunft</TableHeader>
           {countPeriods.map((period) => (
             <TableHeader key={period}>{periodColumnLabel[period]}</TableHeader>
           ))}
@@ -78,6 +79,10 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
               <TableCell className="max-w-40 truncate text-zinc-400">
                 {entry.record.match_status}
                 {entry.record.match_id ? ` → ${entry.record.match_id}` : ''}
+              </TableCell>
+              <TableCell className="max-w-40 truncate text-zinc-400" data-testid="admin-col-source">
+                {entry.record.source === 'manual' ? 'manuell' : 'importiert'}
+                {entry.record.created_by ? ` · ${entry.record.created_by}` : ''}
               </TableCell>
               {countPeriods.map((period) => (
                 <TableCell key={period} className="tabular-nums">

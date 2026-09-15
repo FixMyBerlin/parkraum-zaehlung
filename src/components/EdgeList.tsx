@@ -7,6 +7,7 @@ import { Subheading } from '@/components/ui/heading'
 import { Route } from '@/routes/index'
 import { cn } from '@/shared/cn'
 import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
+import { isManualRecord } from '@/shared/counts/manual-points'
 import { recordForEdge } from '@/shared/counts/match-counts'
 import { countedSides } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
@@ -32,6 +33,13 @@ export function EdgeList() {
     if (!uncounted) return true
     return countedSides(recordForEdge(records, feature.properties.id)) !== 2
   })
+  // Manual points never count towards edge completeness (`ProgressSummary`, the
+  // "nur ungezählt" filter above) — this list is just so they stay reachable without
+  // clicking around the map, so it ignores that filter and shows every one of them.
+  const manualPoints = Object.entries(records)
+    .filter(([, record]) => isManualRecord(record))
+    .map(([id, record]) => ({ id, record }))
+    .sort((a, b) => a.id.localeCompare(b.id))
 
   return (
     <section>
@@ -77,6 +85,39 @@ export function EdgeList() {
           )
         })}
       </ul>
+
+      {manualPoints.length > 0 ? (
+        <>
+          <Subheading className="mt-4">Manuelle Punkte</Subheading>
+          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm">
+            {manualPoints.map(({ id, record }) => {
+              const sides = countedSides(record)
+              const selected = id === selectedId
+              return (
+                <li key={id}>
+                  <Button
+                    plain
+                    type="button"
+                    data-testid={`manual-point-list-${id}`}
+                    className={cn('w-full', selected && 'bg-white/10 text-sky-200')}
+                    onClick={() =>
+                      void navigate({
+                        search: (previous) => ({ ...previous, edge: id }),
+                        replace: true,
+                      })
+                    }
+                  >
+                    <span className="flex w-full items-baseline justify-between gap-2 text-left">
+                      <span>{record.created_by ? `Punkt · ${record.created_by}` : 'Punkt'}</span>
+                      <span className="text-zinc-500">{sides}/2</span>
+                    </span>
+                  </Button>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      ) : null}
     </section>
   )
 }

@@ -106,7 +106,10 @@ export function matchCountsToEdges(records: Record<string, CountRecord>, edges: 
   const built: CountMatchRow[] = []
 
   for (const [originalId, record] of Object.entries(records)) {
-    if (record.match_status === 'none') {
+    // Manual points have no edge to match against — they always keep `match_status:
+    // 'none'` on their own, but this is checked explicitly too so a point placed
+    // near a kerb never snaps onto a nearby edge within the 8 m midpoint radius.
+    if (record.source === 'manual' || record.match_status === 'none') {
       built.push(row(originalId, record, 'none', '', candidatesFor(record, withMids)))
       continue
     }

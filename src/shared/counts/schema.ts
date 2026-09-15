@@ -37,6 +37,15 @@ export const matchStatusSchema = z.enum(['id', 'midpoint', 'manual', 'none'])
 
 export type MatchStatus = z.infer<typeof matchStatusSchema>
 
+/**
+ * `imported` covers every count on a file-imported LineString edge (the vast
+ * majority, and the historical default). `manual` marks a point the user placed
+ * directly on the map where no edge exists — see `src/shared/counts/manual-points.ts`.
+ * Not exported: nothing outside this file needs the schema or the type directly,
+ * they read `CountRecord['source']` instead.
+ */
+const countSourceSchema = z.enum(['imported', 'manual'])
+
 export const countRecordSchema = z.object({
   periods: z.object({
     sunday: periodOccupancySchema,
@@ -47,16 +56,22 @@ export const countRecordSchema = z.object({
   updated_at: z.string(),
   updated_by: z.string().optional(),
   counted_at: z.string(),
+  /** Who first created this record, frozen on every later update (mirrors `counted_at`). */
+  created_by: z.string().optional(),
   mid_lat: z.number(),
   mid_lng: z.number(),
   match_id: z.string(),
   match_status: matchStatusSchema,
+  source: countSourceSchema.default('imported'),
 })
 
 export type CountRecord = z.infer<typeof countRecordSchema>
 
 type EmptyCountExtras = Partial<
-  Pick<CountRecord, 'match_id' | 'match_status' | 'mid_lat' | 'mid_lng' | 'counted_at'>
+  Pick<
+    CountRecord,
+    'match_id' | 'match_status' | 'mid_lat' | 'mid_lng' | 'counted_at' | 'source' | 'created_by'
+  >
 >
 
 export function emptyCountRecord(
@@ -71,10 +86,12 @@ export function emptyCountRecord(
     },
     updated_at: updatedAt,
     counted_at: extras.counted_at ?? updatedAt,
+    created_by: extras.created_by,
     match_id: extras.match_id ?? '',
     match_status: extras.match_status ?? 'id',
     mid_lat: extras.mid_lat ?? 0,
     mid_lng: extras.mid_lng ?? 0,
+    source: extras.source ?? 'imported',
   }
 }
 

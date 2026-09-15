@@ -49,6 +49,9 @@ type CountRecordFromFormArgs = {
   existing?: CountRecord
   edgeId?: string
   coordinates?: ReadonlyArray<ReadonlyArray<number>>
+  /** Create a manual point instead of an edge count — used together, without `edgeId`/`coordinates`. */
+  lng?: number
+  lat?: number
 }
 
 export function countRecordFromFormData(data: FormData, args: CountRecordFromFormArgs = {}) {
@@ -67,6 +70,8 @@ export function countRecordFromFormData(data: FormData, args: CountRecordFromFor
     return {
       ...occupancy,
       counted_at: args.existing.counted_at,
+      created_by: args.existing.created_by,
+      source: args.existing.source,
       mid_lat: args.existing.mid_lat,
       mid_lng: args.existing.mid_lng,
       match_id: matchFromForm?.match_id ?? args.existing.match_id,
@@ -74,18 +79,34 @@ export function countRecordFromFormData(data: FormData, args: CountRecordFromFor
     }
   }
 
-  if (!args.edgeId || !args.coordinates) {
-    throw new Error('New counts need an edge id and coordinates')
+  if (args.edgeId && args.coordinates) {
+    const mid = lineMidpoint(args.coordinates)
+    return {
+      ...occupancy,
+      counted_at: occupancy.updated_at,
+      created_by: args.updatedBy,
+      source: 'imported' as const,
+      mid_lat: mid.lat,
+      mid_lng: mid.lng,
+      match_id: matchFromForm?.match_id ?? args.edgeId,
+      match_status: matchFromForm?.match_status ?? 'id',
+    }
   }
-  const mid = lineMidpoint(args.coordinates)
-  return {
-    ...occupancy,
-    counted_at: occupancy.updated_at,
-    mid_lat: mid.lat,
-    mid_lng: mid.lng,
-    match_id: matchFromForm?.match_id ?? args.edgeId,
-    match_status: matchFromForm?.match_status ?? 'id',
+
+  if (args.lng != null && args.lat != null) {
+    return {
+      ...occupancy,
+      counted_at: occupancy.updated_at,
+      created_by: args.updatedBy,
+      source: 'manual' as const,
+      mid_lat: args.lat,
+      mid_lng: args.lng,
+      match_id: matchFromForm?.match_id ?? '',
+      match_status: matchFromForm?.match_status ?? 'none',
+    }
   }
+
+  throw new Error('New counts need an edge id and coordinates, or a lng/lat')
 }
 
 /** The user-entered part of a count record: all three periods and the note, without bookkeeping fields. */

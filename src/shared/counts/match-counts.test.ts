@@ -146,6 +146,20 @@ describe('matchCountsToEdges', () => {
     expect(result.writes).toHaveLength(0)
   })
 
+  it('ignores a manual point even within the 8 m radius, regardless of match_status', () => {
+    const edge = edgeInput('ce-1')
+    const manual = recordAt(edge, { match_id: '', match_status: 'id' })
+    const result = matchCountsToEdges({ 'manual-abc': { ...manual, source: 'manual' } }, [edge])
+    expect(result.rows[0]).toMatchObject({
+      originalId: 'manual-abc',
+      status: 'none',
+      matchId: '',
+      needsWrite: false,
+    })
+    expect(result.writes).toHaveLength(0)
+    expect(result.summary.none).toBe(1)
+  })
+
   it('leaves match_status none alone even when a unique edge is nearby', () => {
     const edge = edgeInput('ce-1')
     const result = matchCountsToEdges(

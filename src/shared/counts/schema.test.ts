@@ -65,4 +65,20 @@ describe('countRecordSchema', () => {
     ).toBe(false)
     expect(countRecordSchema.safeParse(emptyCountRecord()).success).toBe(true)
   })
+
+  it('defaults source to imported when the field is missing, so old KV/JSON data still parses', () => {
+    const { source: _source, ...withoutSource } = emptyCountRecord()
+    const result = countRecordSchema.safeParse(withoutSource)
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.source).toBe('imported')
+  })
+
+  it('accepts an explicit manual source and an optional created_by', () => {
+    const result = countRecordSchema.safeParse(
+      emptyCountRecord(undefined, { source: 'manual', created_by: 'alice' }),
+    )
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.source).toBe('manual')
+    expect(result.success && result.data.created_by).toBe('alice')
+  })
 })

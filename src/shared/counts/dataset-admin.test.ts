@@ -156,6 +156,20 @@ describe('renameKvDataset', () => {
     await renameKvDataset(store, 'old', 'new')
     expect(meta.size).toBe(0)
   })
+
+  it('migrates a manual point entry like any other id', async () => {
+    const manualId = 'manual-11111111-1111-1111-1111-111111111111'
+    const manualRecord = { ...sample, source: 'manual' as const, created_by: 'alice' }
+    const { store, entries } = fakeStore({
+      [`old/${manualId}`]: { raw: manualRecord, valid: true },
+    })
+
+    const outcome = await renameKvDataset(store, 'old', 'new')
+
+    expect(outcome).toEqual({ migrated: 1, remainingInvalid: 0, failed: [] })
+    expect(entries.has(`old/${manualId}`)).toBe(false)
+    expect(entries.get(`new/${manualId}`)?.raw).toEqual(manualRecord)
+  })
 })
 
 describe('removeRawEntries', () => {
@@ -195,5 +209,20 @@ describe('deleteAllRawEntries', () => {
     await deleteAllRawEntries(store, 'proj')
 
     expect(meta.has('proj')).toBe(false)
+  })
+
+  it('removes manual point entries alongside edge counts, and none from another dataset', async () => {
+    const manualId = 'manual-22222222-2222-2222-2222-222222222222'
+    const { store, entries } = fakeStore({
+      'proj/edge-a': { raw: sample, valid: true },
+      [`proj/${manualId}`]: { raw: { ...sample, source: 'manual' as const }, valid: true },
+      'other/edge-a': { raw: sample, valid: true },
+    })
+
+    const outcome = await deleteAllRawEntries(store, 'proj')
+
+    expect(outcome).toEqual({ removed: 2, failed: [] })
+    expect(entries.has(`proj/${manualId}`)).toBe(false)
+    expect(entries.has('other/edge-a')).toBe(true)
   })
 })

@@ -158,6 +158,50 @@ describe('mergeCountsIntoEdges', () => {
     expect(feature?.geometry).toEqual({ type: 'Point', coordinates: [7.7, 47.7] })
   })
 
+  it('exports a manual point with occupancy as a counted Point, not unmatched/unresolved', () => {
+    const manualBase = emptyCountRecord('2026-09-08T00:00:00.000Z', {
+      match_id: '',
+      match_status: 'none',
+      mid_lat: 47.65,
+      mid_lng: 7.65,
+      source: 'manual',
+      created_by: 'alice',
+    })
+    const manual = {
+      ...manualBase,
+      periods: {
+        ...manualBase.periods,
+        sunday: { ...manualBase.periods.sunday, left: { pkw: 4, motorrad: null, lkw_bus: null } },
+      },
+    }
+    const merged = mergeCountsIntoEdges(collection, { 'manual-abc': manual })
+    const feature = merged.features.find((item) => item.properties.id === 'manual-abc')
+    expect(feature).toMatchObject({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [7.65, 47.65] },
+      properties: {
+        count_status: 'counted',
+        source: 'manual',
+        created_by: 'alice',
+        sunday_left_pkw: 4,
+      },
+    })
+  })
+
+  it('exports an empty manual point (just placed) as uncounted, not unmatched/unresolved', () => {
+    const manual = emptyCountRecord('2026-09-08T00:00:00.000Z', {
+      match_id: '',
+      match_status: 'none',
+      mid_lat: 47.65,
+      mid_lng: 7.65,
+      source: 'manual',
+      created_by: 'alice',
+    })
+    const merged = mergeCountsIntoEdges(collection, { 'manual-empty': manual })
+    const feature = merged.features.find((item) => item.properties.id === 'manual-empty')
+    expect(feature?.properties.count_status).toBe('uncounted')
+  })
+
   it('preserves collection metadata', () => {
     const merged = mergeCountsIntoEdges(collection, {})
     expect(merged.metadata).toEqual({ dataset: 'test-ds', schema: 'counting-edges' })

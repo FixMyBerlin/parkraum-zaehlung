@@ -131,6 +131,15 @@ export function AdminCountForm({ entry }: Props) {
           <DescriptionDetails>
             {saved.mid_lat.toFixed(6)}, {saved.mid_lng.toFixed(6)}
           </DescriptionDetails>
+          <DescriptionTerm>Herkunft</DescriptionTerm>
+          <DescriptionDetails data-testid="admin-source">
+            {saved.source === 'manual' ? 'Manueller Punkt' : 'Importierte Kante'}
+          </DescriptionDetails>
+          <DescriptionTerm>Erstellt von</DescriptionTerm>
+          <DescriptionDetails>
+            {saved.created_by ?? '—'}
+            {saved.counted_at ? ` · ${saved.counted_at.replace('T', ' ').slice(0, 19)}` : null}
+          </DescriptionDetails>
           <DescriptionTerm>Gezählt</DescriptionTerm>
           <DescriptionDetails>{saved.counted_at.replace('T', ' ').slice(0, 19)}</DescriptionDetails>
           <DescriptionTerm>Zuletzt</DescriptionTerm>
@@ -243,7 +252,11 @@ export function AdminCountForm({ entry }: Props) {
             data-testid="admin-delete-count"
             disabled={!auth.authenticated}
             onClick={() => {
-              if (!window.confirm('Zählung für diese Kante löschen?')) return
+              const confirmText =
+                saved.source === 'manual'
+                  ? 'Diesen Punkt und die Zählung löschen?'
+                  : 'Zählung für diese Kante löschen?'
+              if (!window.confirm(confirmText)) return
               clearMutation.mutate()
             }}
           >

@@ -1,8 +1,10 @@
 import { useAsyncDebouncer } from '@tanstack/react-pacer'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { Position } from 'geojson'
 import { type FocusEvent, type FormEvent, useEffect, useId, useRef, useState } from 'react'
 import { CountGrid } from '@/components/CountGrid'
+import { useManualPointDragActions } from '@/components/shared/manual-point-drag-store'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
@@ -24,16 +26,38 @@ import {
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
+import { isManualCountId, withManualPointLocation } from '@/shared/counts/manual-points'
 import { originalIdForEdge, recordForEdge } from '@/shared/counts/match-counts'
 import { type CountRecord } from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
+
+/**
+ * A manual point has no LineString to derive left/right columns from, but `CountGrid`
+ * needs *some* coordinates to keep `screenOrderedSides` stable — a short east–west
+ * dummy segment through the point gives it a fixed, predictable left/right split.
+ */
+function dummyEastWestSegment(lng: number, lat: number): Position[] {
+  const offset = 0.0001
+  return [
+    [lng - offset, lat],
+    [lng + offset, lat],
+  ]
+}
 
 type PendingSave = {
   dataset: string
   kvEdgeId: string
   record: CountRecord
   hadExistingRecord: boolean
+  /**
+   * True for an occupancy save (from the form), which must pick up a manual point's
+   * latest dragged location instead of the stale `mid_*` baked into `record` at
+   * input time. False for the location save itself — it already carries the new
+   * coordinates, and refreshing from cache here would just overwrite them with the
+   * pre-drag value that's still sitting in the cache.
+   */
+  refreshLocationFromCache: boolean
 }
 
 export function EditPanel() {
@@ -59,8 +83,14 @@ export function EditPanel() {
     (feature) => feature.properties.id === edgeId,
   )
   const records = countsQuery.data ?? {}
-  const saved = edgeId ? recordForEdge(records, edgeId) : undefined
-  const kvEdgeId = edgeId ? (originalIdForEdge(records, edgeId) ?? edgeId) : undefined
+  const manualRecord = edgeId && !edge && isManualCountId(edgeId) ? records[edgeId] : undefined
+  const isManualPoint = Boolean(manualRecord)
+  const saved = edge ? recordForEdge(records, edgeId!) : manualRecord
+  const kvEdgeId = isManualPoint
+    ? edgeId
+    : edgeId
+      ? (originalIdForEdge(records, edgeId) ?? edgeId)
+      : undefined
 
   // Last occupancy we attempted to send per edge, so unchanged input is skipped and a
   // failed PUT is not retried in a loop (only new input tries again).
@@ -68,6 +98,7 @@ export function EditPanel() {
   // Serializes writes: at most one PUT in flight, latest snapshot wins after it settles.
   const savingRef = useRef(false)
   const queuedRef = useRef<PendingSave | null>(null)
+  const dragBridgeActions = useManualPointDragActions()
 
   const saveMutation = useMutation({
     mutationFn: async (pending: PendingSave) =>
@@ -98,13 +129,36 @@ export function EditPanel() {
       await queryClient.invalidateQueries({ queryKey: countsQueryKey(dataset) })
       await queryClient.invalidateQueries({ queryKey: allCountsQueryKey })
       await queryClient.invalidateQueries({ queryKey: datasetSummariesQueryKey })
+      // A manual point's "edge" is the KV entry itself — once it's gone there is
+      // nothing left to show, so drop the selection instead of leaving a dead id
+      // in the URL (an imported edge count clears but the edge itself stays put).
+      if (isManualPoint) {
+        void navigate({
+          search: (previous) => ({ ...previous, edge: undefined }),
+          replace: true,
+        })
+      }
     },
   })
 
   async function executeSave(pending: PendingSave) {
     savingRef.current = true
     try {
-      await saveMutation.mutateAsync(pending)
+      // Re-read the latest cached record right before writing: a manual point may
+      // have moved (drag) since `pending.record` was built from an input-time
+      // snapshot, and an occupancy save must never carry that stale location back
+      // over a completed drag. Skipped for the location save itself (see
+      // `refreshLocationFromCache`'s doc comment) — it is the one write that must
+      // win, not defer to whatever is still cached.
+      const latest = pending.refreshLocationFromCache
+        ? queryClient.getQueryData<Record<string, CountRecord>>(countsQueryKey(pending.dataset))?.[
+            pending.kvEdgeId
+          ]
+        : undefined
+      const record = latest
+        ? { ...pending.record, mid_lat: latest.mid_lat, mid_lng: latest.mid_lng }
+        : pending.record
+      await saveMutation.mutateAsync({ ...pending, record })
     } catch {
       // Surfaced via saveMutation.isError below; do not retry automatically.
     } finally {
@@ -164,8 +218,56 @@ export function EditPanel() {
     [debouncer],
   )
 
+  useEffect(
+    function registerManualPointDragHandlers() {
+      if (!isManualPoint || !dataset || !kvEdgeId) return
+      const pointId = kvEdgeId
+      dragBridgeActions.register(pointId, {
+        flush: () => debouncer.flush(),
+        saveLocation: async (lng, lat) => {
+          const latest =
+            queryClient.getQueryData<Record<string, CountRecord>>(countsQueryKey(dataset))?.[
+              pointId
+            ] ?? saved
+          if (!latest) return
+          const pending: PendingSave = {
+            dataset,
+            kvEdgeId: pointId,
+            hadExistingRecord: true,
+            refreshLocationFromCache: false,
+            record: withManualPointLocation(latest, lng, lat, auth.displayName),
+          }
+          if (savingRef.current) {
+            queuedRef.current = pending
+            return
+          }
+          await executeSave(pending)
+        },
+      })
+      return function unregisterManualPointDragHandlers() {
+        dragBridgeActions.unregister(pointId)
+      }
+    },
+    // `executeSave` reads `savingRef`/`queuedRef` and closes over `saveMutation`, all
+    // stable across renders in spirit (refs, and a mutation object react-query keeps
+    // functionally equivalent) — the effect re-registers whenever its own real inputs
+    // change instead, which also re-runs it every render since `saved` is fresh each
+    // time, keeping the closure's `saved` fallback current without extra bookkeeping.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      isManualPoint,
+      dataset,
+      kvEdgeId,
+      debouncer,
+      queryClient,
+      saved,
+      auth.displayName,
+      dragBridgeActions,
+    ],
+  )
+
   if (!dataset) return null
-  if (!edgeId || !edge) {
+  if (!edgeId || (!edge && !isManualPoint)) {
     return (
       <section>
         <Subheading>Zählung</Subheading>
@@ -176,25 +278,32 @@ export function EditPanel() {
     )
   }
 
-  const selectedEdge = edge
-  const properties = selectedEdge.properties
-  const disabledSides = {
-    left: properties.parking_left === 'no',
-    right: properties.parking_right === 'no',
-  }
+  const coordinates = edge
+    ? edge.geometry.coordinates
+    : dummyEastWestSegment(manualRecord!.mid_lng, manualRecord!.mid_lat)
+  const disabledSides = edge
+    ? { left: edge.properties.parking_left === 'no', right: edge.properties.parking_right === 'no' }
+    : { left: false, right: false }
 
   function handleFormInput(event: FormEvent<HTMLFormElement>) {
     if (!dataset || !kvEdgeId) return
+    const formData = new FormData(event.currentTarget)
     const pending: PendingSave = {
       dataset,
       kvEdgeId,
       hadExistingRecord: Boolean(saved),
-      record: countRecordFromFormData(new FormData(event.currentTarget), {
-        updatedBy: auth.displayName,
-        edgeId,
-        coordinates: selectedEdge.geometry.coordinates,
-        existing: saved,
-      }),
+      refreshLocationFromCache: true,
+      record: edge
+        ? countRecordFromFormData(formData, {
+            updatedBy: auth.displayName,
+            edgeId,
+            coordinates: edge.geometry.coordinates,
+            existing: saved,
+          })
+        : countRecordFromFormData(formData, {
+            updatedBy: auth.displayName,
+            existing: saved,
+          }),
     }
     void debouncer.maybeExecute(pending)
   }
@@ -208,26 +317,51 @@ export function EditPanel() {
   return (
     <section>
       <Subheading>Zählung</Subheading>
-      <p className="mt-1 text-sm/6 text-zinc-950 dark:text-white" data-testid="selected-edge-name">
-        {properties.name ?? properties.id}
-      </p>
-      <Text>
-        {properties.highway ?? 'highway?'} ·{' '}
-        {properties.length ? `${properties.length} m` : 'ohne Länge'}
-        {properties.way_ids.length > 0 ? ' · ' : null}
-        {properties.way_ids.map((wayId, index) => (
-          <span key={wayId}>
-            {index > 0 ? ', ' : null}
-            <TextLink
-              href={`https://www.openstreetmap.org/way/${wayId}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              way/{wayId}
-            </TextLink>
-          </span>
-        ))}
-      </Text>
+      {edge ? (
+        <>
+          <p
+            className="mt-1 text-sm/6 text-zinc-950 dark:text-white"
+            data-testid="selected-edge-name"
+          >
+            {edge.properties.name ?? edge.properties.id}
+          </p>
+          <Text>
+            {edge.properties.highway ?? 'highway?'} ·{' '}
+            {edge.properties.length ? `${edge.properties.length} m` : 'ohne Länge'}
+            {edge.properties.way_ids.length > 0 ? ' · ' : null}
+            {edge.properties.way_ids.map((wayId, index) => (
+              <span key={wayId}>
+                {index > 0 ? ', ' : null}
+                <TextLink
+                  href={`https://www.openstreetmap.org/way/${wayId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  way/{wayId}
+                </TextLink>
+              </span>
+            ))}
+          </Text>
+        </>
+      ) : (
+        <>
+          <p
+            className="mt-1 text-sm/6 text-zinc-950 dark:text-white"
+            data-testid="selected-edge-name"
+          >
+            Manueller Punkt
+          </p>
+          <Text data-testid="manual-point-meta">
+            Erstellt von {manualRecord?.created_by ?? '—'}
+            {manualRecord?.counted_at
+              ? ` am ${manualRecord.counted_at.replace('T', ' ').slice(0, 19)}`
+              : null}
+            {manualRecord?.updated_by
+              ? ` · zuletzt ${manualRecord.updated_by} (${manualRecord.updated_at.replace('T', ' ').slice(0, 19)})`
+              : null}
+          </Text>
+        </>
+      )}
       <form
         key={`${edgeId}-${formResetCount}`}
         className="mt-3 space-y-3"
@@ -237,9 +371,12 @@ export function EditPanel() {
       >
         <CountGrid
           formId={formId}
-          coordinates={selectedEdge.geometry.coordinates}
+          coordinates={coordinates}
           disabledSides={disabledSides}
-          capacity={{ left: properties.capacity_left, right: properties.capacity_right }}
+          capacity={{
+            left: edge?.properties.capacity_left,
+            right: edge?.properties.capacity_right,
+          }}
           saved={saved}
         />
         <Field>
@@ -276,7 +413,10 @@ export function EditPanel() {
               data-testid="delete-count"
               disabled={!auth.authenticated}
               onClick={() => {
-                if (!window.confirm('Zählung für diese Kante löschen?')) return
+                const confirmText = isManualPoint
+                  ? 'Diesen Punkt und die Zählung löschen?'
+                  : 'Zählung für diese Kante löschen?'
+                if (!window.confirm(confirmText)) return
                 debouncer.cancel()
                 clearMutation.mutate()
               }}

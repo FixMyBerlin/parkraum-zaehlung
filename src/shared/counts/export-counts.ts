@@ -1,5 +1,7 @@
 import type { FeatureCollection, LineString, Point } from 'geojson'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
+import { isEmptyOccupancy } from './count-from-form'
+import { isManualRecord } from './manual-points'
 import { originalIdForEdge, recordForEdge } from './match-counts'
 import { countedSides, countPeriods, type CountRecord } from './schema'
 
@@ -56,6 +58,8 @@ function countExportFields(record: CountRecord, originalEdgeId: string) {
     match_status: record.match_status,
     mid_lat: record.mid_lat,
     mid_lng: record.mid_lng,
+    source: record.source,
+    created_by: record.created_by,
   }
 }
 
@@ -100,14 +104,23 @@ export function mergeCountsIntoEdges(
     .filter(([originalId]) => !usedOriginalIds.has(originalId))
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([originalId, record]) => {
-      const unmatched = record.match_status === 'none'
+      // Manual points never match an edge by design, so they always land here too —
+      // but they are placed points, not leftovers from a broken/renamed edge, so they
+      // get their own two-value status instead of unmatched/unresolved.
+      const countStatus: CountStatus = isManualRecord(record)
+        ? isEmptyOccupancy(record)
+          ? 'uncounted'
+          : 'counted'
+        : record.match_status === 'none'
+          ? 'unmatched'
+          : 'unresolved'
       return {
         type: 'Feature' as const,
         id: originalId,
         geometry: midpointPoint(record),
         properties: {
           id: originalId,
-          count_status: unmatched ? ('unmatched' as const) : ('unresolved' as const),
+          count_status: countStatus,
           ...countExportFields(record, originalId),
         },
       }
