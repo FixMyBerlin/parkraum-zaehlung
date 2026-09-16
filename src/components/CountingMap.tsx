@@ -46,6 +46,7 @@ import { countedSides, countPeriods, type CountRecord } from '@/shared/counts/sc
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import { decorateEdges } from '@/shared/edges/decorate-edges'
 import {
+  EDGE_LINE_WIDTH,
   EDGE_SIDE_CLUSTER_OFFSET,
   EDGE_SIDE_LINE_COLOR,
   EDGE_SIDE_LINE_OFFSET,
@@ -53,12 +54,10 @@ import {
 } from '@/shared/map/edge-side-style'
 import { exposeMainMapForDebugging } from '@/shared/map/expose-main-map'
 import {
-  MANUAL_POINT_CORE_RADIUS_AT_Z14,
-  MANUAL_POINT_CORE_RADIUS_AT_Z20,
-  MANUAL_POINT_HALO_RADIUS_AT_Z14,
-  MANUAL_POINT_HALO_RADIUS_AT_Z20,
-  MANUAL_POINT_SELECTED_RADIUS_AT_Z14,
-  MANUAL_POINT_SELECTED_RADIUS_AT_Z20,
+  MANUAL_POINT_CORE_RADIUS,
+  MANUAL_POINT_HALO_RADIUS,
+  MANUAL_POINT_MARKER_SIZE,
+  MANUAL_POINT_SELECTED_RADIUS,
 } from '@/shared/map/manual-point-style'
 import {
   EDGES_ARROWS_LAYER_ID,
@@ -404,7 +403,7 @@ export function CountingMap() {
               type="line"
               source={EDGES_SOURCE_ID}
               paint={{
-                'line-width': 4,
+                'line-width': EDGE_LINE_WIDTH,
                 'line-color': [
                   'match',
                   ['get', 'count_state'],
@@ -552,36 +551,20 @@ export function CountingMap() {
           source={MANUAL_POINTS_SOURCE_ID}
           filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
           paint={{
-            'circle-radius': [
-              'interpolate',
-              ['exponential', 2],
-              ['zoom'],
-              14,
-              MANUAL_POINT_SELECTED_RADIUS_AT_Z14,
-              20,
-              MANUAL_POINT_SELECTED_RADIUS_AT_Z20,
-            ],
+            'circle-radius': MANUAL_POINT_SELECTED_RADIUS,
             'circle-color': '#f8fafc',
-            'circle-opacity': 0.35,
+            'circle-opacity': 0.55,
             'circle-pitch-alignment': 'map',
           }}
         />
-        {/* Halo is the click/drag hit target (~8 m); core is roughly one parked car
-          (~2–3 m) — same completeness palette as the counting-edges line layer. */}
+        {/* Halo is the click/drag hit target, as wide as a highlighted side line; the core
+          matches the grey edge line — same completeness palette as those line layers. */}
         <Layer
           id={MANUAL_POINTS_HALO_LAYER_ID}
           type="circle"
           source={MANUAL_POINTS_SOURCE_ID}
           paint={{
-            'circle-radius': [
-              'interpolate',
-              ['exponential', 2],
-              ['zoom'],
-              14,
-              MANUAL_POINT_HALO_RADIUS_AT_Z14,
-              20,
-              MANUAL_POINT_HALO_RADIUS_AT_Z20,
-            ],
+            'circle-radius': MANUAL_POINT_HALO_RADIUS,
             'circle-color': [
               'match',
               ['get', 'count_state'],
@@ -600,15 +583,7 @@ export function CountingMap() {
           type="circle"
           source={MANUAL_POINTS_SOURCE_ID}
           paint={{
-            'circle-radius': [
-              'interpolate',
-              ['exponential', 2],
-              ['zoom'],
-              14,
-              MANUAL_POINT_CORE_RADIUS_AT_Z14,
-              20,
-              MANUAL_POINT_CORE_RADIUS_AT_Z20,
-            ],
+            'circle-radius': MANUAL_POINT_CORE_RADIUS,
             'circle-color': [
               'match',
               ['get', 'count_state'],
@@ -659,8 +634,12 @@ export function CountingMap() {
             <div
               aria-hidden="true"
               data-testid="manual-point-marker"
-              className="size-4 cursor-grab rounded-full ring-2 ring-white active:cursor-grabbing"
-              style={{ backgroundColor: manualPointMarkerColor(selectedManualPoint.record) }}
+              className="cursor-grab rounded-full ring-1 ring-white active:cursor-grabbing"
+              style={{
+                width: MANUAL_POINT_MARKER_SIZE,
+                height: MANUAL_POINT_MARKER_SIZE,
+                backgroundColor: manualPointMarkerColor(selectedManualPoint.record),
+              }}
             />
           </Marker>
         ) : null}

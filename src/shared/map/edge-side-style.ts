@@ -6,6 +6,9 @@ export const EDGE_SIDE_LINE_COLOR = {
   right: '#fb7185',
 } as const
 
+/** The grey line drawn on the edge itself, under the two side lines. */
+export const EDGE_LINE_WIDTH = 4
+
 export const EDGE_SIDE_LINE_WIDTH = 3
 export const EDGE_SIDE_LINE_WIDTH_ACTIVE = 12
 export const EDGE_SIDE_LINE_OFFSET = 6
