@@ -46,7 +46,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.35",
     "@types/geojson": "^7946.0.16",
@@ -60,14 +60,14 @@
     "eslint-plugin-compat": "^7.0.2",
     "fake-indexeddb": "^6.2.5",
     "husky": "^9.1.7",
-    "knip": "^6.34.0",
+    "knip": "^6.35.1",
     "oxc-transform-react": "^0.148.0",
-    "oxfmt": "0.66.0",
-    "oxlint": "1.81.0",
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
     "oxlint-tsgolint": "7.0.2001",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vitest": "^5.0.0"
   },
   "optionalDependencies": {
