@@ -13,12 +13,38 @@
     @apply bg-zinc-950 text-zinc-100 antialiased;
   }
 
+  /* Tailwind 4 ships the CSS default (`cursor: default`) on controls, so every clickable
+     thing states its own hand cursor here. Text fields keep the caret on purpose. */
   button:not(:disabled),
-  a[href] {
+  a[href],
+  summary,
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled),
+  input[type='submit']:not(:disabled),
+  input[type='button']:not(:disabled),
+  input[type='reset']:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='radio']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  label:has(> input[type='checkbox']:not(:disabled)),
+  label:has(> input[type='radio']:not(:disabled)),
+  [data-slot='field']:has(
+      > [role='checkbox']:not([aria-disabled='true']),
+      > [role='radio']:not([aria-disabled='true']),
+      > input[type='checkbox']:not(:disabled),
+      > input[type='radio']:not(:disabled)
+    )
+    label {
     @apply cursor-pointer;
   }
 
-  button:disabled {
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled='true'] {
     @apply cursor-not-allowed;
   }
 }
