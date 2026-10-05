@@ -485,6 +485,8 @@ export function CountingMap() {
                 'symbol-placement': 'line',
                 'symbol-spacing': 80,
                 'text-field': '▶',
+                // MapLibre's default font is not on OpenFreeMap's glyph server (404).
+                'text-font': ['Noto Sans Regular'],
                 'text-size': 12,
                 'text-keep-upright': false,
                 'text-rotation-alignment': 'map',
@@ -511,6 +513,7 @@ export function CountingMap() {
                     '',
                   ],
                 ],
+                'text-font': ['Noto Sans Regular'],
                 'text-size': 11,
                 'text-allow-overlap': true,
               }}
