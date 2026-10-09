@@ -10,19 +10,23 @@ export const EDGES_ID_LABELS_LAYER_ID = 'counting-edges-id-labels'
 export const MATCH_POINT_SOURCE_ID = 'count-match-point'
 export const MATCH_POINT_LAYER_ID = 'count-match-point-circle'
 
-// Three-line partner clusters, drawn instead of EDGES_LEFT/RIGHT_LAYER_ID whenever an
-// edge has midday or evening data (`has_extra_periods`). One layer per side per period
+// Partner-line clusters, drawn instead of EDGES_LEFT/RIGHT_LAYER_ID whenever an
+// edge has data beyond Sunday (`has_extra_periods`). One layer per side per period
 // so each can be filtered independently — a period with no data on that side is a gap.
 export const EDGES_LEFT_PERIOD_LAYER_ID = {
   sunday: 'counting-edges-left-sunday',
   midday: 'counting-edges-left-midday',
   evening: 'counting-edges-left-evening',
+  period_4: 'counting-edges-left-period-4',
+  period_5: 'counting-edges-left-period-5',
 } as const
 
 export const EDGES_RIGHT_PERIOD_LAYER_ID = {
   sunday: 'counting-edges-right-sunday',
   midday: 'counting-edges-right-midday',
   evening: 'counting-edges-right-evening',
+  period_4: 'counting-edges-right-period-4',
+  period_5: 'counting-edges-right-period-5',
 } as const
 
 export const EDGES_LEFT_PERIOD_LAYER_IDS = Object.values(EDGES_LEFT_PERIOD_LAYER_ID)

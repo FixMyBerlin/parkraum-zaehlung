@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 import { buildAllCountsFile, mergeCountsIntoEdges } from './export-counts'
-import { emptyCountRecord } from './schema'
+import { emptyCountRecord, emptySideCount } from './schema'
 
 const collection: CountingEdgesGeoJSON = {
   type: 'FeatureCollection',
@@ -52,7 +52,10 @@ function recordFor(id: string, extras: Parameters<typeof emptyCountRecord>[1] = 
     ...base,
     periods: {
       ...base.periods,
-      sunday: { ...base.periods.sunday, left: { pkw: 3, motorrad: 1, lkw_bus: null } },
+      sunday: {
+        ...base.periods.sunday,
+        left: { ...emptySideCount(), pkw: 3, motorrad: 1, lkw_bus: null },
+      },
     },
   }
 }
@@ -63,8 +66,12 @@ describe('mergeCountsIntoEdges', () => {
     expect(merged.features[0]?.properties).toMatchObject({
       sunday_left_pkw: 3,
       sunday_left_motorrad: 1,
+      sunday_left_kleintransporter: null,
+      sunday_left_sonstiges: null,
       sunday_right_pkw: null,
       midday_left_pkw: null,
+      period_4_left_pkw: null,
+      period_5_right_sonstiges: null,
       evening_left_pkw: null,
       counted_sides: 1,
       original_edge_id: 'ce-1',
@@ -117,7 +124,10 @@ describe('mergeCountsIntoEdges', () => {
       ...orphanBase,
       periods: {
         ...orphanBase.periods,
-        sunday: { ...orphanBase.periods.sunday, left: { pkw: 2, motorrad: null, lkw_bus: 1 } },
+        sunday: {
+          ...orphanBase.periods.sunday,
+          left: { ...emptySideCount(), pkw: 2, motorrad: null, lkw_bus: 1 },
+        },
       },
       note: 'stale id',
     }
@@ -171,7 +181,10 @@ describe('mergeCountsIntoEdges', () => {
       ...manualBase,
       periods: {
         ...manualBase.periods,
-        sunday: { ...manualBase.periods.sunday, left: { pkw: 4, motorrad: null, lkw_bus: null } },
+        sunday: {
+          ...manualBase.periods.sunday,
+          left: { ...emptySideCount(), pkw: 4, motorrad: null, lkw_bus: null },
+        },
       },
     }
     const merged = mergeCountsIntoEdges(collection, { 'manual-abc': manual })

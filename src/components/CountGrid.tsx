@@ -1,35 +1,28 @@
-import { useHotkeys } from '@tanstack/react-hotkeys'
 import type { Position } from 'geojson'
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import { useActiveCountPeriod, useCountPeriodActions } from '@/components/count-period-store'
+import {
+  periodFlags,
+  useActiveCountPeriod,
+  useCountPeriodActions,
+} from '@/components/count-period-store'
 import { CountPeriodToggle } from '@/components/CountPeriodToggle'
 import { useMapBearing, useMapUiActions } from '@/components/shared/map-ui-store'
 import { cn } from '@/shared/cn'
 import { countFieldTabOrder } from '@/shared/counts/count-field-tab-order'
 import { firstUncountedSide } from '@/shared/counts/focus-side'
 import {
+  countCategories,
+  countCategoryLabel,
   countPeriods,
   isPeriodSideCounted,
+  type CountCategory,
   type CountPeriod,
   type CountRecord,
+  type Side,
 } from '@/shared/counts/schema'
-import { useTextEntryFocused } from '@/shared/dom/text-entry-focus'
 import { screenOrderedSides } from '@/shared/edges/way-side-order'
 import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
 import { EDGE_SIDE_LINE_COLOR } from '@/shared/map/edge-side-style'
-
-type Side = 'left' | 'right'
-
-/**
- * One row per category, one column per side. Hotkeys mirror the grid on the
- * keyboard so counting stays a two-finger job: `q`/`w` top, `a`/`s` middle,
- * `y`/`x` bottom (German layout, where `y` sits bottom left).
- */
-const categories = [
-  { key: 'pkw', label: 'Pkw', hotkeys: ['Q', 'W'] },
-  { key: 'motorrad', label: 'Motorrad', hotkeys: ['A', 'S'] },
-  { key: 'lkw_bus', label: 'Lkw/Bus', hotkeys: ['Y', 'X'] },
-] as const
 
 const sideLabel = { left: 'Links', right: 'Rechts' } as const
 
@@ -46,7 +39,7 @@ const sideInputFocusClassName = {
 
 function countInputClassName(side: Side) {
   return cn(
-    'min-h-9 w-full rounded-lg border py-1.5 pr-6 pl-2 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:text-white dark:scheme-dark',
+    'min-h-9 w-full rounded-lg border px-2 py-1.5 text-center text-base/6 tabular-nums text-zinc-950 sm:text-sm/6 dark:text-white dark:scheme-dark',
     'focus:outline-hidden',
     sideInputClassName[side],
     sideInputFocusClassName[side],
@@ -72,32 +65,23 @@ export function CountGrid({
   const { setFocusedCountSide } = useMapUiActions()
   const activePeriod = useActiveCountPeriod()
   const { setPeriodHasData, resetPeriodHasData } = useCountPeriodActions()
-  const textEntryFocused = useTextEntryFocused()
   const fieldRefs = useRef(new Map<string, HTMLInputElement>())
   // The side+category last focused by the user, kept across period switches so
-  // pressing E/D/C (or clicking a segment) returns focus to the same cell instead
+  // pressing a tab shortcut (or clicking a segment) returns focus to the same cell instead
   // of jumping to the first uncounted field. Reset to null on every edge (a new
   // `CountGrid` instance, since the parent remounts this by key).
   const lastFocusedFieldRef = useRef<{
     side: Side
-    categoryKey: (typeof categories)[number]['key']
+    categoryKey: CountCategory
   } | null>(null)
 
   const columns = screenOrderedSides(coordinates, mapBearing)
 
-  function fieldKey(
-    period: CountPeriod,
-    side: Side,
-    categoryKey: (typeof categories)[number]['key'],
-  ) {
+  function fieldKey(period: CountPeriod, side: Side, categoryKey: CountCategory) {
     return `${period}_${side}_${categoryKey}`
   }
 
-  function focusField(
-    period: CountPeriod,
-    side: Side,
-    categoryKey: (typeof categories)[number]['key'],
-  ) {
+  function focusField(period: CountPeriod, side: Side, categoryKey: CountCategory) {
     const field = fieldRefs.current.get(fieldKey(period, side, categoryKey))
     if (!field || field.disabled) return
     field.focus()
@@ -107,7 +91,7 @@ export function CountGrid({
   function handleCountInputTab(
     event: KeyboardEvent<HTMLInputElement>,
     side: Side,
-    categoryKey: (typeof categories)[number]['key'],
+    categoryKey: CountCategory,
   ) {
     if (event.key !== 'Tab') return
     const order = countFieldTabOrder(columns)
@@ -119,11 +103,11 @@ export function CountGrid({
     focusField(activePeriod, next.side, next.key)
   }
 
-  /** Does any of the period's 6 inputs currently hold a value, read live from the DOM? */
+  /** Does any of the period's inputs currently hold a value, read live from the DOM? */
   function periodHasAnyInputValue(period: CountPeriod) {
     return (['left', 'right'] as const).some((side) =>
-      categories.some((category) => {
-        const field = fieldRefs.current.get(fieldKey(period, side, category.key))
+      countCategories.some((category) => {
+        const field = fieldRefs.current.get(fieldKey(period, side, category))
         return Boolean(field && field.value !== '')
       }),
     )
@@ -142,11 +126,7 @@ export function CountGrid({
     function seedPeriodDataIndicatorFromSaved() {
       // Runs once per mounted edge only — this seeds the toggle's data indicator from
       // the last saved state; live typing updates it via `handleCountInputChange`.
-      resetPeriodHasData({
-        sunday: periodSavedHasData('sunday'),
-        midday: periodSavedHasData('midday'),
-        evening: periodSavedHasData('evening'),
-      })
+      resetPeriodHasData(periodFlags(periodSavedHasData))
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -167,7 +147,7 @@ export function CountGrid({
       // Fresh edge mount, nothing focused yet: fall back to the first uncounted field.
       const side = firstUncountedSide(columns, disabledSides, saved, activePeriod)
       if (!side) return
-      focusField(activePeriod, side, categories[0].key)
+      focusField(activePeriod, side, countCategories[0])
     },
     // Fires once per selected edge (a new edge remounts this grid by key, so the
     // effect runs with whatever period is active) and again whenever the toggle
@@ -177,29 +157,13 @@ export function CountGrid({
     [activePeriod],
   )
 
-  useHotkeys(
-    categories.flatMap((category) =>
-      columns.map((side, columnIndex) => ({
-        hotkey: category.hotkeys[columnIndex]!,
-        callback: () => focusField(activePeriod, side, category.key),
-        options: {
-          meta: {
-            name: `${category.label} ${sideLabel[side]}`,
-            description: `Fokus auf ${category.label} ${sideLabel[side]}`,
-          },
-        },
-      })),
-    ),
-    { enabled: !textEntryFocused, ignoreInputs: false },
-  )
-
   return (
     <div className="space-y-2">
       <CountPeriodToggle />
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr>
-            <th className="w-20 p-0" />
+            <th className="w-36 p-0" />
             {columns.map((side) => (
               <th
                 key={side}
@@ -225,58 +189,45 @@ export function CountGrid({
         </thead>
         {countPeriods.map((period) => (
           <tbody key={period} hidden={period !== activePeriod}>
-            {categories.map((category) => (
-              <tr key={category.key}>
+            {countCategories.map((category) => (
+              <tr key={category}>
                 <th
-                  id={`${formId}-${period}-${category.key}`}
+                  id={`${formId}-${period}-${category}`}
                   scope="row"
                   className="py-0.5 pr-2 text-left align-middle text-sm font-medium text-zinc-950 dark:text-white"
                 >
-                  {category.label}
+                  {countCategoryLabel[category]}
                 </th>
-                {columns.map((side, columnIndex) => {
+                {columns.map((side) => {
                   return (
                     <td key={side} className="px-1 py-0.5 align-middle">
                       <div className="relative">
                         <input
                           ref={(element) => {
-                            const key = fieldKey(period, side, category.key)
+                            const key = fieldKey(period, side, category)
                             if (element) fieldRefs.current.set(key, element)
                             else fieldRefs.current.delete(key)
                           }}
-                          id={`${formId}-${period}-${side}-${category.key}`}
-                          name={`${period}_${side}_${category.key}`}
+                          id={`${formId}-${period}-${side}-${category}`}
+                          name={`${period}_${side}_${category}`}
                           type="number"
                           min={0}
                           step={1}
                           inputMode="numeric"
                           {...ignorePasswordManagerProps}
-                          defaultValue={saved?.periods[period][side][category.key] ?? ''}
-                          aria-labelledby={`${formId}-${period}-${category.key} ${formId}-${side}`}
-                          aria-keyshortcuts={
-                            period === activePeriod
-                              ? category.hotkeys[columnIndex]!.toLowerCase()
-                              : undefined
-                          }
+                          defaultValue={saved?.periods[period][side][category] ?? ''}
+                          aria-labelledby={`${formId}-${period}-${category} ${formId}-${side}`}
                           tabIndex={period === activePeriod ? undefined : -1}
                           className={countInputClassName(side)}
-                          data-testid={`${period}-${side}-${category.key}`}
-                          onKeyDown={(event) => handleCountInputTab(event, side, category.key)}
+                          data-testid={`${period}-${side}-${category}`}
+                          onKeyDown={(event) => handleCountInputTab(event, side, category)}
                           onChange={() => handleCountInputChange(period)}
                           onFocus={(event) => {
-                            lastFocusedFieldRef.current = { side, categoryKey: category.key }
+                            lastFocusedFieldRef.current = { side, categoryKey: category }
                             setFocusedCountSide(side)
                             event.currentTarget.select()
                           }}
                         />
-                        {period === activePeriod ? (
-                          <kbd
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center font-sans text-[10px] text-zinc-500"
-                          >
-                            {category.hotkeys[columnIndex]}
-                          </kbd>
-                        ) : null}
                       </div>
                     </td>
                   )

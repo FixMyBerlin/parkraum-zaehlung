@@ -1,8 +1,10 @@
 import { lineMidpoint } from '@/shared/edges/line-midpoint'
 import {
+  countCategories,
   countPeriods,
   isSideCounted,
   matchStatusSchema,
+  type CountCategory,
   type CountPeriod,
   type CountRecord,
   type PeriodOccupancy,
@@ -11,17 +13,15 @@ import {
 } from './schema'
 
 export function readSideCount(form: FormData, period: CountPeriod, side: Side) {
-  const read = (key: keyof SideCount) => {
+  const read = (key: CountCategory) => {
     const raw = form.get(`${period}_${side}_${key}`)
     if (raw == null || raw === '') return null
     const parsed = Number(raw)
     return Number.isFinite(parsed) ? parsed : null
   }
-  return {
-    pkw: read('pkw'),
-    motorrad: read('motorrad'),
-    lkw_bus: read('lkw_bus'),
-  }
+  return Object.fromEntries(
+    countCategories.map((category) => [category, read(category)]),
+  ) as SideCount
 }
 
 function periodOccupancyFromForm(data: FormData, period: CountPeriod): PeriodOccupancy {
@@ -109,11 +109,11 @@ export function countRecordFromFormData(data: FormData, args: CountRecordFromFor
   throw new Error('New counts need an edge id and coordinates, or a lng/lat')
 }
 
-/** The user-entered part of a count record: all three periods and the note, without bookkeeping fields. */
+/** The user-entered part of a count record: all periods and the note, without bookkeeping fields. */
 export type Occupancy = Pick<CountRecord, 'periods' | 'note'>
 
 function sameSideCount(a: SideCount, b: SideCount) {
-  return a.pkw === b.pkw && a.motorrad === b.motorrad && a.lkw_bus === b.lkw_bus
+  return countCategories.every((category) => a[category] === b[category])
 }
 
 function samePeriodOccupancy(a: PeriodOccupancy, b: PeriodOccupancy) {
@@ -133,7 +133,7 @@ export function isEmptyOccupancy(occupancy: Occupancy) {
 }
 
 /**
- * Compares two occupancies by user-visible content only (all three periods and the note),
+ * Compares two occupancies by user-visible content only (all periods and the note),
  * ignoring bookkeeping fields like `updated_at`/`updated_by`. Autosave uses this to skip a
  * PUT when the form's content didn't actually change.
  */

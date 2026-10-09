@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { createKvClient } from '@/shared/kv-client'
 import { createKvCountStore, osmLoginRequiredMessage, projectMetaTag } from './kv-count-store'
-import { emptyCountRecord, type CountRecord } from './schema'
+import { emptyCountRecord, emptySideCount, type CountRecord } from './schema'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -34,7 +34,10 @@ const sampleRecord: CountRecord = {
   ...sampleRecordBase,
   periods: {
     ...sampleRecordBase.periods,
-    sunday: { ...sampleRecordBase.periods.sunday, left: { pkw: 4, motorrad: 1, lkw_bus: 0 } },
+    sunday: {
+      ...sampleRecordBase.periods.sunday,
+      left: { ...emptySideCount(), pkw: 4, motorrad: 1, lkw_bus: 0 },
+    },
   },
 }
 

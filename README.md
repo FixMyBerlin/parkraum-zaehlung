@@ -1,6 +1,6 @@
 # Parkraum-Zählung
 
-Web mask to count parked vehicles per street edge (left/right: car, motorcycle, truck/bus). Counts persist in the shared Zähl-Datenbank after OSM login.
+Web mask to count parked vehicles per street edge (left/right, five vehicle classes, five count tabs). Counts persist in the shared Zähl-Datenbank after OSM login.
 
 Dev server: [http://127.0.0.1:33478](http://127.0.0.1:33478) (fixed host and port so OSM OAuth redirect URIs stay stable).
 
@@ -53,7 +53,13 @@ Left/right are relative to the edge direction (OSM direction of the longest cons
 
 ### Counts
 
-One record per edge: `left` / `right` each `{ pkw, motorrad, lkw_bus }` (integer or `null`), plus `note?`, `updated_at`, `updated_by?`.
+One record per edge: `periods.{sunday,midday,evening,period_4,period_5}`, each with `left` / `right` as `{ pkw, kleintransporter, lkw_bus, motorrad, sonstiges }` (integer or `null` for "not counted"), plus `note?`, `updated_at`, `updated_by?` and the match/midpoint fields.
+
+The period and category keys are stored in the Zähl-Datenbank and name the GeoJSON export columns (`{period}_{side}_{category}`), so they are never renamed; only the labels in `src/shared/counts/schema.ts` change (`period_4`/`period_5` show as "Zeit 4"/"Zeit 5" until they get a real name). New keys are added with a default in `countRecordSchema`, so older records parse without rewriting the database: `kleintransporter`, `sonstiges`, `period_4` and `period_5` are simply empty on records stored before they existed.
+
+Progress, the `x/2` badges, the map colours and **nur ungezählt** always describe the open count tab. An edge is done in a tab once both sides hold a value there.
+
+**Mehrfachauswahl:** Shift+click edges on the map or in the list, then **Überall 0 eintragen** writes 0 in all categories to every still-open side of those edges in the open tab (for roundabouts and junctions). Existing values are kept.
 
 ## Deploy
 

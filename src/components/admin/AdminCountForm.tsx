@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, type FormEvent } from 'react'
-import { useActiveCountPeriod, useCountPeriodActions } from '@/components/count-period-store'
+import {
+  periodFlags,
+  useActiveCountPeriod,
+  useCountPeriodActions,
+} from '@/components/count-period-store'
 import { CountPeriodToggle } from '@/components/CountPeriodToggle'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
 import { Button } from '@/components/ui/button'
@@ -26,14 +30,14 @@ import {
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
 import { osmLoginRequiredMessage } from '@/shared/counts/kv-count-store'
-import { countPeriods, isPeriodSideCounted, type CountPeriod } from '@/shared/counts/schema'
+import {
+  countCategories,
+  countCategoryLabel,
+  countPeriods,
+  isPeriodSideCounted,
+  type CountPeriod,
+} from '@/shared/counts/schema'
 import { ignorePasswordManagerProps } from '@/shared/form-ignore-password-manager'
-
-const categories = [
-  { key: 'pkw', label: 'Pkw' },
-  { key: 'motorrad', label: 'Motorrad' },
-  { key: 'lkw_bus', label: 'Lkw/Bus' },
-] as const
 
 type Props = {
   entry: CountStoreEntry
@@ -50,17 +54,13 @@ export function AdminCountForm({ entry }: Props) {
   useEffect(
     function seedPeriodDataIndicatorFromSaved() {
       // Runs once per selected row (the form remounts by key on dataset/edgeId/updated_at).
-      resetPeriodHasData({
-        sunday:
-          isPeriodSideCounted(saved, 'sunday', 'left') ||
-          isPeriodSideCounted(saved, 'sunday', 'right'),
-        midday:
-          isPeriodSideCounted(saved, 'midday', 'left') ||
-          isPeriodSideCounted(saved, 'midday', 'right'),
-        evening:
-          isPeriodSideCounted(saved, 'evening', 'left') ||
-          isPeriodSideCounted(saved, 'evening', 'right'),
-      })
+      resetPeriodHasData(
+        periodFlags(
+          (period) =>
+            isPeriodSideCounted(saved, period, 'left') ||
+            isPeriodSideCounted(saved, period, 'right'),
+        ),
+      )
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -164,29 +164,29 @@ export function AdminCountForm({ entry }: Props) {
           >
             <p className="text-sm/6 font-medium text-zinc-400">Links</p>
             <p className="text-sm/6 font-medium text-zinc-400">Rechts</p>
-            {categories.map((category) => (
-              <div key={category.key} className="contents">
+            {countCategories.map((category) => (
+              <div key={category} className="contents">
                 <Field>
-                  <Label>{category.label} links</Label>
+                  <Label>{countCategoryLabel[category]} links</Label>
                   <Input
                     type="number"
                     min={0}
-                    name={`${period}_left_${category.key}`}
-                    defaultValue={saved.periods[period].left[category.key] ?? ''}
+                    name={`${period}_left_${category}`}
+                    defaultValue={saved.periods[period].left[category] ?? ''}
                     {...ignorePasswordManagerProps}
-                    data-testid={`admin-${period}-left-${category.key}`}
+                    data-testid={`admin-${period}-left-${category}`}
                     onChange={(event) => handlePeriodInputChange(event.currentTarget.form!, period)}
                   />
                 </Field>
                 <Field>
-                  <Label>{category.label} rechts</Label>
+                  <Label>{countCategoryLabel[category]} rechts</Label>
                   <Input
                     type="number"
                     min={0}
-                    name={`${period}_right_${category.key}`}
-                    defaultValue={saved.periods[period].right[category.key] ?? ''}
+                    name={`${period}_right_${category}`}
+                    defaultValue={saved.periods[period].right[category] ?? ''}
                     {...ignorePasswordManagerProps}
-                    data-testid={`admin-${period}-right-${category.key}`}
+                    data-testid={`admin-${period}-right-${category}`}
                     onChange={(event) => handlePeriodInputChange(event.currentTarget.form!, period)}
                   />
                 </Field>

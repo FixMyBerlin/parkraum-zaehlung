@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { countPeriodStoreForTests } from './count-period-store'
+import { countPeriodStoreForTests, periodFlags } from './count-period-store'
 
 const initialState = countPeriodStoreForTests.getState()
 
@@ -32,6 +32,8 @@ describe('count period store', () => {
       sunday: false,
       midday: false,
       evening: false,
+      period_4: false,
+      period_5: false,
     })
   })
 
@@ -41,18 +43,24 @@ describe('count period store', () => {
       sunday: false,
       midday: true,
       evening: false,
+      period_4: false,
+      period_5: false,
     })
   })
 
-  test('resetPeriodHasData re-seeds all three at once, e.g. from a newly opened edge', () => {
+  test('resetPeriodHasData re-seeds every flag at once, e.g. from a newly opened edge', () => {
     countPeriodStoreForTests.getState().actions.setPeriodHasData('midday', true)
     countPeriodStoreForTests
       .getState()
-      .actions.resetPeriodHasData({ sunday: true, midday: false, evening: true })
+      .actions.resetPeriodHasData(
+        periodFlags((period) => period === 'sunday' || period === 'period_5'),
+      )
     expect(countPeriodStoreForTests.getState().periodHasData).toEqual({
       sunday: true,
       midday: false,
-      evening: true,
+      evening: false,
+      period_4: false,
+      period_5: true,
     })
   })
 })

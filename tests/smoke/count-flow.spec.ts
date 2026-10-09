@@ -199,7 +199,7 @@ test.describe('counting flow', () => {
     await expect(row).toContainText('9')
   })
 
-  test('keeps the active period after switching edges, and Sunday-only progress', async ({
+  test('keeps the active period after switching edges, and progress follows the active tab', async ({
     page,
   }) => {
     await page.goto('/')
@@ -219,18 +219,63 @@ test.describe('counting flow', () => {
     await page.getByTestId('sunday-right-pkw').fill('5')
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
 
-    // Switch to Mittags via the D shortcut and fill it in — Sunday-only progress must
-    // not change, since midday/evening are optional extras.
+    // Switch to Mittags via the D shortcut: progress and "nur ungezählt" describe the
+    // open tab, so the edge counted on Sunday is open again here.
     await page.getByTestId('selected-edge-name').click()
     await page.keyboard.press('d')
     await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
+    await page.getByLabel('nur ungezählt').click()
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toBeVisible()
+
+    // Half counted stays visible, fully counted in this tab drops out of the list.
     await page.getByTestId('midday-left-pkw').fill('3')
+    await page.getByTestId('midday-right-kleintransporter').fill('0')
     await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toBeHidden()
+
+    // Back on Sunday the same edge is still done; the two new tabs are reachable by R/F.
+    await page.getByTestId('selected-edge-name').click()
+    await page.keyboard.press('f')
+    await expect(page.getByTestId('period-toggle-period_5')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByTestId('progress-summary')).toContainText('0/6 Kanten')
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toBeVisible()
+    await page.getByLabel('nur ungezählt').click()
+    await page.keyboard.press('d')
 
     // Switching edges keeps Mittags active, and lands on that period's own fields.
     await page.getByTestId('edge-list-ce-tumringer').click()
     await expect(page.getByTestId('selected-edge-name')).toHaveText('Tumringer Straße')
     await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  test('Shift+click picks several edges and enters 0 on all of them', async ({ page }) => {
+    await page.goto('/')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
+    await page.getByTestId('import-dataset').click()
+
+    // One side of the first edge is already counted and must survive the bulk action.
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await page.getByTestId('sunday-left-pkw').fill('7')
+    await page.getByTestId('selected-edge-name').click()
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toContainText('1/2')
+
+    // The open edge joins the selection that the first Shift+click starts.
+    await page.getByTestId('edge-list-ce-tumringer').click({ modifiers: ['Shift'] })
+    await expect(page.getByTestId('multi-select-panel')).toContainText('2 Kanten gewählt')
+    await page.getByTestId('multi-select-zero').click()
+
+    await expect(page.getByTestId('multi-select-panel')).toBeHidden()
+    await expect(page.getByTestId('progress-summary')).toContainText('2/6 Kanten')
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('sunday-left-pkw')).toHaveValue('7')
+    await expect(page.getByTestId('sunday-left-sonstiges')).toHaveValue('')
+    await expect(page.getByTestId('sunday-right-pkw')).toHaveValue('0')
+    await expect(page.getByTestId('sunday-right-sonstiges')).toHaveValue('0')
   })
 
   test('a period hotkey keeps focus on the same side+category cell instead of jumping', async ({

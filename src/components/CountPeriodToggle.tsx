@@ -5,25 +5,21 @@ import {
   useCountPeriodHasData,
 } from '@/components/count-period-store'
 import { cn } from '@/shared/cn'
-import { countPeriods, type CountPeriod } from '@/shared/counts/schema'
+import { countPeriodLabel, countPeriods, type CountPeriod } from '@/shared/counts/schema'
 import { useTextEntryFocused } from '@/shared/dom/text-entry-focus'
-
-const periodLabel: Record<CountPeriod, string> = {
-  sunday: 'Sonntag',
-  midday: 'Mittags',
-  evening: 'Abends',
-}
 
 const periodHotkey = {
   sunday: 'E',
   midday: 'D',
   evening: 'C',
+  period_4: 'R',
+  period_5: 'F',
 } as const satisfies Record<CountPeriod, string>
 
 /**
- * Segmented Sonntag/Mittags/Abends control shared by the map form and the
- * admin form (both read the same `count-period-store`), with E/D/C shortcuts
- * mirroring the toggle. Switching periods only moves the store's pointer —
+ * Segmented count-tab control shared by the map form and the admin form (both
+ * read the same `count-period-store`), with E/D/C/R/F shortcuts mirroring the
+ * toggle. Switching periods only moves the store's pointer —
  * it never touches form values, so it cannot trigger a save or a remount.
  * (`CountGrid` reacts to the new `activePeriod` with its own effect to move
  * focus, rather than this component reaching into the grid.)
@@ -40,8 +36,8 @@ export function CountPeriodToggle() {
       callback: () => setActivePeriod(period),
       options: {
         meta: {
-          name: periodLabel[period],
-          description: `Zeitraum ${periodLabel[period]}`,
+          name: countPeriodLabel[period],
+          description: `Zeitraum ${countPeriodLabel[period]}`,
         },
       },
     })),
@@ -63,7 +59,7 @@ export function CountPeriodToggle() {
           aria-keyshortcuts={periodHotkey[period].toLowerCase()}
           data-testid={`period-toggle-${period}`}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium',
+            'relative flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1 py-1 text-xs font-medium whitespace-nowrap',
             'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-400',
             activePeriod === period
               ? 'bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white'
@@ -71,18 +67,18 @@ export function CountPeriodToggle() {
           )}
           onClick={() => setActivePeriod(period)}
         >
-          {periodLabel[period]}
+          {countPeriodLabel[period]}
           {periodHasData[period] ? (
             <span
               aria-hidden="true"
               data-testid={`period-toggle-data-${period}`}
-              className="size-1.5 shrink-0 rounded-full bg-sky-500 dark:bg-sky-400"
+              className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-sky-500 dark:bg-sky-400"
             />
           ) : null}
           <span className="sr-only">{periodHasData[period] ? 'Daten vorhanden' : ''}</span>
           <kbd
             aria-hidden="true"
-            className="rounded border border-current/30 px-1 font-sans text-[10px] opacity-70"
+            className="rounded border border-current/30 px-0.5 font-sans text-[10px] opacity-70"
           >
             {periodHotkey[period]}
           </kbd>

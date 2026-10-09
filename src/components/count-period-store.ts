@@ -1,15 +1,22 @@
 import { create } from 'zustand'
-import type { CountPeriod } from '@/shared/counts/schema'
+import { countPeriods, type CountPeriod } from '@/shared/counts/schema'
 
 /**
- * Which count period (Sunday/midday/evening) the map form and the admin form
+ * Which count period (one of the count tabs) the map form and the admin form
  * currently show. Shared between both so switching one switches the other.
  * Survives edge changes and form remounts — it lives outside the form's
  * `key={...}` lifecycle on purpose.
  */
 type PeriodHasData = Record<CountPeriod, boolean>
 
-const emptyPeriodHasData: PeriodHasData = { sunday: false, midday: false, evening: false }
+/** One flag per count period, e.g. to seed `resetPeriodHasData` from a saved record. */
+export function periodFlags(hasData: (period: CountPeriod) => boolean) {
+  return Object.fromEntries(
+    countPeriods.map((period) => [period, hasData(period)]),
+  ) as PeriodHasData
+}
+
+const emptyPeriodHasData = periodFlags(() => false)
 
 interface CountPeriodStore {
   activePeriod: CountPeriod
@@ -22,7 +29,7 @@ interface CountPeriodStore {
   actions: {
     setActivePeriod: (period: CountPeriod) => void
     setPeriodHasData: (period: CountPeriod, hasData: boolean) => void
-    /** Re-seeds all three flags at once — called once per edge, from `saved`. */
+    /** Re-seeds every flag at once — called once per edge, from `saved`. */
     resetPeriodHasData: (periodHasData: PeriodHasData) => void
   }
 }

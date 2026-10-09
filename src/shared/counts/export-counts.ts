@@ -3,7 +3,7 @@ import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 import { isEmptyOccupancy } from './count-from-form'
 import { isManualRecord } from './manual-points'
 import { originalIdForEdge, recordForEdge } from './match-counts'
-import { countedSides, countPeriods, type CountRecord } from './schema'
+import { countCategories, countedSides, countPeriods, type CountRecord } from './schema'
 
 export type CountStatus = 'counted' | 'uncounted' | 'unmatched' | 'unresolved'
 
@@ -27,29 +27,27 @@ export function buildAllCountsFile(datasets: Record<string, Record<string, Count
 }
 
 /**
- * GeoJSON is a flat, GIS-facing contract: 18 `{period}_{side}_{category}` number-or-null
- * fields (never a nested `periods` object), always all 18 once a feature is counted at all.
+ * GeoJSON is a flat, GIS-facing contract: one `{period}_{side}_{category}` number-or-null
+ * field per period, side and category (never a nested `periods` object), always all of
+ * them once a feature is counted at all. `counted_sides` describes Sunday, the baseline.
  */
 function periodExportFields(record: CountRecord) {
   return Object.fromEntries(
-    countPeriods.flatMap((period) => {
-      const occupancy = record.periods[period]
-      return [
-        [`${period}_left_pkw`, occupancy.left.pkw],
-        [`${period}_left_motorrad`, occupancy.left.motorrad],
-        [`${period}_left_lkw_bus`, occupancy.left.lkw_bus],
-        [`${period}_right_pkw`, occupancy.right.pkw],
-        [`${period}_right_motorrad`, occupancy.right.motorrad],
-        [`${period}_right_lkw_bus`, occupancy.right.lkw_bus],
-      ]
-    }),
+    countPeriods.flatMap((period) =>
+      (['left', 'right'] as const).flatMap((side) =>
+        countCategories.map((category) => [
+          `${period}_${side}_${category}`,
+          record.periods[period][side][category],
+        ]),
+      ),
+    ),
   ) as Record<string, number | null>
 }
 
 function countExportFields(record: CountRecord, originalEdgeId: string) {
   return {
     ...periodExportFields(record),
-    counted_sides: countedSides(record),
+    counted_sides: countedSides(record, 'sunday'),
     note: record.note,
     counted_at: record.counted_at,
     counted_by: record.updated_by,

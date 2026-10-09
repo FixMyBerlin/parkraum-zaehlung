@@ -1,8 +1,14 @@
+import { useEffect } from 'react'
 import { DatasetPanel } from '@/components/DatasetPanel'
 import { EdgeList } from '@/components/EdgeList'
 import { EditPanel } from '@/components/EditPanel'
 import { ExportPanel } from '@/components/ExportPanel'
+import { MultiSelectPanel } from '@/components/MultiSelectPanel'
 import { ProgressSummary } from '@/components/ProgressSummary'
+import {
+  useMultiSelectActions,
+  useMultiSelectedEdgeIds,
+} from '@/components/shared/multi-select-store'
 import { useAppStepNav } from '@/components/shared/use-app-step-nav'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/callout'
@@ -15,6 +21,18 @@ import {
 
 export function AppSidebar() {
   const { dataset, current, edges, remoteCount, hasLocalEdges, goToStep } = useAppStepNav()
+  const multiSelecting = useMultiSelectedEdgeIds().length > 0
+  const { clear: clearMultiSelect } = useMultiSelectActions()
+
+  useEffect(
+    function dropMultiSelectionOnDatasetChange() {
+      // Edge ids only mean something within one dataset.
+      return function clearOnDatasetChange() {
+        clearMultiSelect()
+      }
+    },
+    [dataset, clearMultiSelect],
+  )
 
   return (
     <SidebarNav className="h-full bg-zinc-900">
@@ -52,7 +70,7 @@ export function AppSidebar() {
           ) : (
             <>
               <SidebarSection>
-                <EditPanel />
+                {multiSelecting ? <MultiSelectPanel /> : <EditPanel />}
               </SidebarSection>
               <SidebarDivider />
               <SidebarSection>

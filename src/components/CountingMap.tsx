@@ -14,6 +14,7 @@ import {
   type MarkerDragEvent,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
+import { useActiveCountPeriod } from '@/components/count-period-store'
 import { MapBackgroundLayerControl } from '@/components/MapBackgroundLayerControl'
 import { MapBackgroundLayerSource } from '@/components/MapBackgroundLayerSource'
 import { MapResetNorthPitchButton } from '@/components/MapResetNorthPitchButton'
@@ -27,6 +28,10 @@ import {
   useHoveredSide,
   useMapUiActions,
 } from '@/components/shared/map-ui-store'
+import {
+  useMultiSelectActions,
+  useMultiSelectedEdgeIds,
+} from '@/components/shared/multi-select-store'
 import { Tooltip } from '@/components/shared/Tooltip/Tooltip'
 import { useAssignMatch } from '@/components/shared/use-assign-match'
 import { useOsmAuth } from '@/components/shared/use-osm-auth'
@@ -40,9 +45,14 @@ import {
   countStore,
   datasetSummariesQueryKey,
 } from '@/shared/counts/counts-query'
-import { isManualRecord, newManualPointId } from '@/shared/counts/manual-points'
+import { isManualCountId, isManualRecord, newManualPointId } from '@/shared/counts/manual-points'
 import { edgeMatchInputs, matchCountsToEdges } from '@/shared/counts/match-counts'
-import { countedSides, countPeriods, type CountRecord } from '@/shared/counts/schema'
+import {
+  countedSides,
+  countPeriods,
+  type CountPeriod,
+  type CountRecord,
+} from '@/shared/counts/schema'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
 import { decorateEdges } from '@/shared/edges/decorate-edges'
 import {
@@ -93,6 +103,10 @@ export function CountingMap() {
   const search = Route.useSearch()
   const map = searchMapParam(search)
   const { dataset, edge, uncounted, parkings, bg, match: matchId } = search
+  // Completeness colours and the "nur ungezählt" filter describe the open count tab.
+  const activePeriod = useActiveCountPeriod()
+  const multiSelectedIds = useMultiSelectedEdgeIds()
+  const { toggleEdge, clear: clearMultiSelect } = useMultiSelectActions()
   const currentStep = resolveStep(search)
   const matchMode = currentStep === 'dataset' && Boolean(matchId)
   const { assign } = useAssignMatch(dataset)
@@ -172,7 +186,7 @@ export function CountingMap() {
     type: 'FeatureCollection' as const,
     features: manualPoints.map(({ id, record }) => {
       const dragged = dragPosition && dragPosition.id === id ? dragPosition : null
-      const sides = countedSides(record)
+      const sides = countedSides(record, activePeriod)
       const countState = sides === 0 ? 'uncounted' : sides === 2 ? 'full' : 'partial'
       return {
         type: 'Feature' as const,
@@ -197,7 +211,7 @@ export function CountingMap() {
         selectedCandidateId: edge,
       }
     : undefined
-  const geojson = collection && decorateEdges(collection, records, uncounted, matchUi)
+  const geojson = collection && decorateEdges(collection, records, uncounted, activePeriod, matchUi)
   const matchPoint =
     matchMode && selectedMatch
       ? {
@@ -335,6 +349,7 @@ export function CountingMap() {
 
           const pointId = manualPointIdFromEvent(event)
           if (pointId) {
+            clearMultiSelect()
             void navigate({
               search: (previous) => ({ ...previous, edge: pointId, step: 'count' }),
               replace: true,
@@ -344,6 +359,17 @@ export function CountingMap() {
 
           const id = edgeIdFromEvent(event)
           if (!id) return
+          // Umschalt+Klick sammelt Kanten für die Mehrfachauswahl (nur beim Zählen);
+          // the edge open in the count form joins the selection it starts.
+          if (event.originalEvent.shiftKey && currentStep === 'count') {
+            toggleEdge(id, edge && !isManualCountId(edge) ? edge : undefined)
+            void navigate({
+              search: (previous) => ({ ...previous, edge: undefined }),
+              replace: true,
+            })
+            return
+          }
+          clearMultiSelect()
           if (matchMode && matchId) {
             assign.mutate({ originalId: matchId, matchId: id, status: 'manual' })
             void navigate({
@@ -391,7 +417,13 @@ export function CountingMap() {
               id={EDGES_SELECTED_LAYER_ID}
               type="line"
               source={EDGES_SOURCE_ID}
-              filter={edge ? ['==', ['get', 'id'], edge] : ['literal', false]}
+              filter={
+                multiSelectedIds.length > 0
+                  ? ['in', ['get', 'id'], ['literal', multiSelectedIds]]
+                  : edge
+                    ? ['==', ['get', 'id'], edge]
+                    : ['literal', false]
+              }
               paint={{
                 'line-width': 8,
                 'line-color': '#f8fafc',
@@ -419,7 +451,7 @@ export function CountingMap() {
               }}
             />
             {/* Plain ±6 side lines — the default look, hidden once an edge grows a
-              three-line partner cluster below (`has_extra_periods`). */}
+              partner-line cluster below (`has_extra_periods`). */}
             <Layer
               id={EDGES_LEFT_LAYER_ID}
               type="line"
@@ -444,7 +476,7 @@ export function CountingMap() {
                 'line-opacity': 0.85,
               }}
             />
-            {/* Three-line partner cluster: one layer per side per period, each gated on
+            {/* Partner-line cluster: one layer per side per period, each gated on
               `has_extra_periods` plus that period's own boolean so a period with no data
               on that side leaves a gap instead of drawing a zero-length stub. */}
             {countPeriods.map((period) => (
@@ -641,7 +673,7 @@ export function CountingMap() {
               style={{
                 width: MANUAL_POINT_MARKER_SIZE,
                 height: MANUAL_POINT_MARKER_SIZE,
-                backgroundColor: manualPointMarkerColor(selectedManualPoint.record),
+                backgroundColor: manualPointMarkerColor(selectedManualPoint.record, activePeriod),
               }}
             />
           </Marker>
@@ -678,8 +710,8 @@ export function CountingMap() {
   )
 }
 
-function manualPointMarkerColor(record: CountRecord) {
-  const sides = countedSides(record)
+function manualPointMarkerColor(record: CountRecord, period: CountPeriod) {
+  const sides = countedSides(record, period)
   return sides === 0 ? '#64748b' : sides === 2 ? '#22c55e' : '#eab308'
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyCountRecord } from '@/shared/counts/schema'
+import { emptyCountRecord, emptySideCount } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 import { edgeCountProgress, resolveStep, stepDescription } from '@/shared/routing/app-step'
 
@@ -61,14 +61,19 @@ describe('stepDescription', () => {
         periods: {
           ...empty.periods,
           sunday: {
-            left: { pkw: 1, motorrad: null, lkw_bus: null },
-            right: { pkw: 1, motorrad: null, lkw_bus: null },
+            left: { ...emptySideCount(), pkw: 1, motorrad: null, lkw_bus: null },
+            right: { ...emptySideCount(), pkw: 1, motorrad: null, lkw_bus: null },
           },
         },
       },
     }
-    expect(edgeCountProgress(edges, records)).toEqual({ counted: 1, total: 2 })
+    expect(edgeCountProgress(edges, records, 'sunday')).toEqual({ counted: 1, total: 2 })
     expect(stepDescription({ step: 'count', edges, records })).toBe('1/2 Kanten')
+    // Progress describes the active count tab only.
+    expect(edgeCountProgress(edges, records, 'midday')).toEqual({ counted: 0, total: 2 })
+    expect(stepDescription({ step: 'count', edges, records, period: 'period_4' })).toBe(
+      '0/2 Kanten',
+    )
     expect(stepDescription({ step: 'count', dataset: 'x', remoteCount: 4 })).toBe(
       '4 in der Zähl-Datenbank',
     )

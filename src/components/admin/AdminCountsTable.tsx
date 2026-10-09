@@ -9,6 +9,8 @@ import {
 import { cn } from '@/shared/cn'
 import type { CountStoreEntry } from '@/shared/counts/count-store'
 import {
+  countCategories,
+  countPeriodLabel,
   countPeriods,
   isSideCounted,
   occupancyFor,
@@ -16,14 +18,9 @@ import {
   type SideCount,
 } from '@/shared/counts/schema'
 
-const periodColumnLabel = {
-  sunday: 'Sonntag',
-  midday: 'Mittags',
-  evening: 'Abends',
-} as const
-
 function formatSide(side: SideCount) {
-  return [side.pkw, side.motorrad, side.lkw_bus]
+  return countCategories
+    .map((category) => side[category])
     .map((value) => (value == null ? '·' : String(value)))
     .join(' / ')
 }
@@ -54,7 +51,7 @@ export function AdminCountsTable({ entries, selected, onSelect }: Props) {
           <TableHeader data-testid="admin-col-match">Zuordnung</TableHeader>
           <TableHeader>Herkunft</TableHeader>
           {countPeriods.map((period) => (
-            <TableHeader key={period}>{periodColumnLabel[period]}</TableHeader>
+            <TableHeader key={period}>{countPeriodLabel[period]}</TableHeader>
           ))}
           <TableHeader>Notiz</TableHeader>
           <TableHeader>Von</TableHeader>

@@ -1,5 +1,5 @@
 import { recordForEdge } from '@/shared/counts/match-counts'
-import { countedSides, type CountRecord } from '@/shared/counts/schema'
+import { countedSides, type CountPeriod, type CountRecord } from '@/shared/counts/schema'
 import type { CountingEdgesGeoJSON } from '@/shared/edges/schema'
 
 export const appSteps = ['dataset', 'count', 'export'] as const
@@ -21,10 +21,11 @@ export function resolveStep(search: { step?: AppStep; dataset?: string }) {
 export function edgeCountProgress(
   edges: CountingEdgesGeoJSON,
   records: Record<string, CountRecord>,
+  period: CountPeriod,
 ) {
   const total = edges.features.length
   const counted = edges.features.filter(
-    (feature) => countedSides(recordForEdge(records, feature.properties.id)) === 2,
+    (feature) => countedSides(recordForEdge(records, feature.properties.id), period) === 2,
   ).length
   return { counted, total }
 }
@@ -35,6 +36,8 @@ type StepDescriptionArgs = {
   edges?: CountingEdgesGeoJSON
   records?: Record<string, CountRecord>
   remoteCount?: number
+  /** The active count tab: progress describes that tab only. */
+  period?: CountPeriod
 }
 
 function countLabel(count: number) {
@@ -47,13 +50,14 @@ export function stepDescription({
   edges,
   records = {},
   remoteCount = 0,
+  period = 'sunday',
 }: StepDescriptionArgs) {
   switch (step) {
     case 'dataset':
       return dataset || 'Kein Datensatz'
     case 'count':
       if (edges) {
-        const { counted, total } = edgeCountProgress(edges, records)
+        const { counted, total } = edgeCountProgress(edges, records, period)
         return `${counted}/${total} Kanten`
       }
       if (dataset && remoteCount > 0) return `${remoteCount} in der Zähl-Datenbank`

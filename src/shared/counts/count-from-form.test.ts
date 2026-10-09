@@ -20,7 +20,7 @@ const coordinates = [
 ] as const
 
 describe('countRecordFromFormData', () => {
-  it('reads all three periods, note, author, and location from a new edge', () => {
+  it('reads every period, note, author, and location from a new edge', () => {
     const record = countRecordFromFormData(
       formData({
         sunday_left_pkw: '4',
@@ -29,8 +29,10 @@ describe('countRecordFromFormData', () => {
         sunday_right_pkw: '2',
         sunday_right_motorrad: '1',
         sunday_right_lkw_bus: '',
+        sunday_right_kleintransporter: '2',
         midday_left_pkw: '3',
         evening_right_pkw: '6',
+        period_5_left_sonstiges: '1',
         note: 'Ecke',
       }),
       {
@@ -39,11 +41,33 @@ describe('countRecordFromFormData', () => {
         coordinates,
       },
     )
-    expect(record.periods.sunday.left).toEqual({ pkw: 4, motorrad: null, lkw_bus: 0 })
-    expect(record.periods.sunday.right).toEqual({ pkw: 2, motorrad: 1, lkw_bus: null })
-    expect(record.periods.midday.left).toEqual({ pkw: 3, motorrad: null, lkw_bus: null })
+    expect(record.periods.sunday.left).toEqual({
+      ...emptySideCount(),
+      pkw: 4,
+      motorrad: null,
+      lkw_bus: 0,
+    })
+    expect(record.periods.sunday.right).toEqual({
+      ...emptySideCount(),
+      pkw: 2,
+      kleintransporter: 2,
+      motorrad: 1,
+    })
+    expect(record.periods.period_4.left).toEqual(emptySideCount())
+    expect(record.periods.period_5.left).toEqual({ ...emptySideCount(), sonstiges: 1 })
+    expect(record.periods.midday.left).toEqual({
+      ...emptySideCount(),
+      pkw: 3,
+      motorrad: null,
+      lkw_bus: null,
+    })
     expect(record.periods.midday.right).toEqual(emptySideCount())
-    expect(record.periods.evening.right).toEqual({ pkw: 6, motorrad: null, lkw_bus: null })
+    expect(record.periods.evening.right).toEqual({
+      ...emptySideCount(),
+      pkw: 6,
+      motorrad: null,
+      lkw_bus: null,
+    })
     expect(record.note).toBe('Ecke')
     expect(record.updated_by).toBe('tordans')
     expect(record.updated_at).toEqual(expect.any(String))
@@ -81,11 +105,7 @@ describe('countRecordFromFormData', () => {
       coordinates,
     })
     expect(record.note).toBeUndefined()
-    expect(readSideCount(formData({}), 'sunday', 'left')).toEqual({
-      pkw: null,
-      motorrad: null,
-      lkw_bus: null,
-    })
+    expect(readSideCount(formData({}), 'sunday', 'left')).toEqual(emptySideCount())
   })
 
   it('creates a manual point from lng/lat, with match_status none and source manual', () => {
@@ -132,6 +152,8 @@ function occupancy(overrides: Partial<Occupancy> = {}): Occupancy {
       sunday: emptyPeriodOccupancy(),
       midday: emptyPeriodOccupancy(),
       evening: emptyPeriodOccupancy(),
+      period_4: emptyPeriodOccupancy(),
+      period_5: emptyPeriodOccupancy(),
     },
     note: undefined,
     ...overrides,

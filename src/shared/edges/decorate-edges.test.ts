@@ -61,7 +61,7 @@ function withMidday(record: CountRecord, left: number | null): CountRecord {
 describe('decorateEdges', () => {
   it('sets count_state and counted_sides from Sunday only', () => {
     const record = withSunday(recordFor('ce-1'), 3, null)
-    const decorated = decorateEdges(collection, { 'ce-1': record }, false)
+    const decorated = decorateEdges(collection, { 'ce-1': record }, false, 'sunday')
     const feature = decorated.features.find((f) => f.properties.id === 'ce-1')
     expect(feature?.properties.count_state).toBe('partial')
     expect(feature?.properties.counted_sides).toBe(1)
@@ -71,7 +71,12 @@ describe('decorateEdges', () => {
     const sundayOnly = withSunday(recordFor('ce-1'), 3, 4)
     const withExtra = withMidday(withSunday(recordFor('ce-2'), 1, 1), 2)
 
-    const decorated = decorateEdges(collection, { 'ce-1': sundayOnly, 'ce-2': withExtra }, false)
+    const decorated = decorateEdges(
+      collection,
+      { 'ce-1': sundayOnly, 'ce-2': withExtra },
+      false,
+      'sunday',
+    )
     const sundayOnlyFeature = decorated.features.find((f) => f.properties.id === 'ce-1')
     const extraFeature = decorated.features.find((f) => f.properties.id === 'ce-2')
 
@@ -81,7 +86,7 @@ describe('decorateEdges', () => {
 
   it('sets per-side per-period booleans for the cluster layer filters', () => {
     const record = withMidday(withSunday(recordFor('ce-1'), 3, null), 2)
-    const decorated = decorateEdges(collection, { 'ce-1': record }, false)
+    const decorated = decorateEdges(collection, { 'ce-1': record }, false, 'sunday')
     const feature = decorated.features.find((f) => f.properties.id === 'ce-1')
 
     expect(feature?.properties.left_sunday).toBe(true)
@@ -93,16 +98,29 @@ describe('decorateEdges', () => {
   })
 
   it('defaults every flag to false for an uncounted edge', () => {
-    const decorated = decorateEdges(collection, {}, false)
+    const decorated = decorateEdges(collection, {}, false, 'sunday')
     const feature = decorated.features.find((f) => f.properties.id === 'ce-2')
     expect(feature?.properties.has_extra_periods).toBe(false)
     expect(feature?.properties.left_sunday).toBe(false)
     expect(feature?.properties.count_state).toBe('uncounted')
   })
 
-  it('keeps the uncounted-only filter based on Sunday completeness', () => {
-    const full = withSunday(recordFor('ce-1'), 3, 4)
-    const decorated = decorateEdges(collection, { 'ce-1': full }, true)
-    expect(decorated.features.map((f) => f.properties.id)).toEqual(['ce-2'])
+  it('filters uncounted-only by the active period, not by Sunday', () => {
+    const sundayFull = withSunday(recordFor('ce-1'), 3, 4)
+    const records = { 'ce-1': sundayFull }
+    expect(
+      decorateEdges(collection, records, true, 'sunday').features.map((f) => f.properties.id),
+    ).toEqual(['ce-2'])
+    // Counted on Sunday, but still open in every other tab.
+    const midday = decorateEdges(collection, records, true, 'midday')
+    expect(midday.features.map((f) => f.properties.id)).toEqual(['ce-1', 'ce-2'])
+    expect(midday.features[0]?.properties.count_state).toBe('uncounted')
+  })
+
+  it('keeps a half-counted edge visible in the uncounted-only filter', () => {
+    const half = withMidday(recordFor('ce-1'), 2)
+    const decorated = decorateEdges(collection, { 'ce-1': half }, true, 'midday')
+    expect(decorated.features.map((f) => f.properties.id)).toEqual(['ce-1', 'ce-2'])
+    expect(decorated.features[0]?.properties.count_state).toBe('partial')
   })
 })

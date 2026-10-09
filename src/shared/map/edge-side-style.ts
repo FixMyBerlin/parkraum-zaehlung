@@ -14,14 +14,16 @@ export const EDGE_SIDE_LINE_WIDTH_ACTIVE = 12
 export const EDGE_SIDE_LINE_OFFSET = 6
 
 /**
- * Offsets for the three-line partner cluster (`has_extra_periods`), one line per
- * period per side: Sunday closest to the edge, evening furthest out. Left offsets
+ * Offsets for the partner-line cluster (`has_extra_periods`), one line per
+ * period per side: Sunday closest to the edge, the last period furthest out. Left offsets
  * are negated by the caller so the cluster mirrors left/right around the edge.
  */
 export const EDGE_SIDE_CLUSTER_OFFSET: Record<CountPeriod, number> = {
   sunday: 3,
   midday: 6,
   evening: 9,
+  period_4: 12,
+  period_5: 15,
 }
 
 type HoveredSide = 'left' | 'right' | 'center' | null

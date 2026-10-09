@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useActiveCountPeriod } from '@/components/count-period-store'
 import type { StepNavItem } from '@/components/StepNav'
 import { countsQueryKey, countStore } from '@/shared/counts/counts-query'
 import { loadDataset } from '@/shared/datasets/dataset-idb'
@@ -14,6 +15,7 @@ import {
 
 export function useAppStepNav() {
   const navigate = useNavigate()
+  const activePeriod = useActiveCountPeriod()
   const indexMatch = useMatch({ from: '/', shouldThrow: false })
   const isDataPage = useRouterState({
     select: (state) => state.location.pathname === '/data',
@@ -45,6 +47,7 @@ export function useAppStepNav() {
       edges,
       records,
       remoteCount,
+      period: activePeriod,
     }),
     status: stepStatus({
       step: id,
