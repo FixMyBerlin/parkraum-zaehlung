@@ -249,6 +249,37 @@ test.describe('counting flow', () => {
     await expect(page.getByTestId('period-toggle-midday')).toHaveAttribute('aria-checked', 'true')
   })
 
+  test('saves a value typed while the previous save is still in flight', async ({ page }) => {
+    // A slow Zähl-Datenbank: the first save is still on its way when the next value is
+    // typed, and answers before that value's own autosave delay has passed.
+    const isCountPut = (url: string, method: string) =>
+      method === 'PUT' && url.includes(encodeURIComponent('loerrach-sample/ce-basler-nord'))
+    await page.route(`${kvOrigin}/**`, async (route) => {
+      if (isCountPut(route.request().url(), route.request().method())) {
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      }
+      await route.fallback()
+    })
+
+    await page.goto('/')
+    await createProjectAndStageFile(
+      page,
+      'loerrach-sample',
+      'public/fixtures/loerrach-sample.geojson',
+    )
+    await page.getByTestId('import-dataset').click()
+    await page.getByTestId('edge-list-ce-basler-nord').click()
+    await expect(page.getByTestId('selected-edge-name')).toHaveText('Basler Straße')
+
+    const firstSave = page.waitForRequest((request) => isCountPut(request.url(), request.method()))
+    await page.getByTestId('sunday-left-pkw').fill('7')
+    await firstSave
+    await page.getByTestId('sunday-right-pkw').fill('5')
+
+    await expect(page.getByTestId('progress-summary')).toContainText('1/6 Kanten')
+    await expect(page.getByTestId('edge-list-ce-basler-nord')).toContainText('2/2')
+  })
+
   test('Shift+click picks several edges and enters 0 on all of them', async ({ page }) => {
     await page.goto('/')
     await createProjectAndStageFile(

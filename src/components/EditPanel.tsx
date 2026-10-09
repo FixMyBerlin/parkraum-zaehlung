@@ -1,4 +1,4 @@
-import { useAsyncDebouncer } from '@tanstack/react-pacer'
+import { useDebouncer } from '@tanstack/react-pacer'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { Position } from 'geojson'
@@ -189,12 +189,32 @@ export function EditPanel() {
     await executeSave(pending)
   }
 
-  const debouncer = useAsyncDebouncer(runSave, { wait: 500 })
+  // Resolves once every save started so far (including a queued follow-up) has settled.
+  const savesSettledRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  function startSave(pending: PendingSave) {
+    savesSettledRef.current = Promise.all([savesSettledRef.current, runSave(pending)])
+  }
+
+  // The debounced function must return right away and must not be the async debouncer:
+  // that one forgets input typed while a save is still in flight (its settle step clears
+  // the pending arguments), so the value typed last was silently never saved. Unmounting
+  // flushes instead of cancelling, so leaving the form does not drop the last input either.
+  const debouncer = useDebouncer(startSave, {
+    wait: 500,
+    onUnmount: (instance) => instance.flush(),
+  })
+
+  /** Sends pending input now and waits until nothing is in flight anymore. */
+  async function flushSaves() {
+    debouncer.flush()
+    await savesSettledRef.current
+  }
 
   useEffect(
     function flushPendingSaveOnEdgeChange() {
       return function flushBeforeEdgeChanges() {
-        void debouncer.flush()
+        debouncer.flush()
       }
     },
     [edgeId, debouncer],
@@ -203,10 +223,10 @@ export function EditPanel() {
   useEffect(
     function flushPendingSaveOnPageHide() {
       function flushOnPageHide() {
-        void debouncer.flush()
+        debouncer.flush()
       }
       function flushOnVisibilityHidden() {
-        if (document.visibilityState === 'hidden') void debouncer.flush()
+        if (document.visibilityState === 'hidden') debouncer.flush()
       }
       window.addEventListener('pagehide', flushOnPageHide)
       document.addEventListener('visibilitychange', flushOnVisibilityHidden)
@@ -223,7 +243,7 @@ export function EditPanel() {
       if (!isManualPoint || !dataset || !kvEdgeId) return
       const pointId = kvEdgeId
       dragBridgeActions.register(pointId, {
-        flush: () => debouncer.flush(),
+        flush: flushSaves,
         saveLocation: async (lng, lat) => {
           const latest =
             queryClient.getQueryData<Record<string, CountRecord>>(countsQueryKey(dataset))?.[
@@ -305,13 +325,13 @@ export function EditPanel() {
             existing: saved,
           }),
     }
-    void debouncer.maybeExecute(pending)
+    debouncer.maybeExecute(pending)
   }
 
   function handleFormBlur(event: FocusEvent<HTMLFormElement>) {
     const next = event.relatedTarget
     if (next instanceof Node && event.currentTarget.contains(next)) return
-    void debouncer.flush()
+    debouncer.flush()
   }
 
   return (
@@ -428,7 +448,7 @@ export function EditPanel() {
             type="button"
             plain
             onClick={() => {
-              void debouncer.flush().then(() => {
+              void flushSaves().then(() => {
                 void navigate({
                   search: (previous) => ({ ...previous, edge: undefined }),
                   replace: true,
