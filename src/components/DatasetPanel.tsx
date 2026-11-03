@@ -13,7 +13,7 @@ import { Field, Fieldset, Label } from '@/components/ui/fieldset'
 import { Subheading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
 import { SidebarDivider } from '@/components/ui/sidebar'
-import { Code, Text, TextLink } from '@/components/ui/text'
+import { Code, Strong, Text, TextLink } from '@/components/ui/text'
 import { sampleEdgesGithubUrl, sampleEdgesRemapUrl } from '@/config/app.const'
 import { Route } from '@/routes/index'
 import {
@@ -388,31 +388,49 @@ export function DatasetPanel() {
         <MotionCollapse open={importHelpOpen}>
           <div id="import-help" className="space-y-2 pt-2">
             <Text>
-              Kanten bleiben in diesem Browser. Zählungen liegen in der gemeinsamen Zähl-Datenbank.
-              Sie gehören über den Projektnamen und die Kanten-IDs zusammen.
-            </Text>
-            <Text>
-              Die App lädt die Kanten nicht auf einen Server. Bewahre die Kanten-Datei auf, damit du
-              oder andere die Zählungen später wieder den Kanten zuordnen können. Der GeoJSON-Export
-              enthält die Kanten und kann wieder importiert werden.
+              Kanten bleiben in diesem Browser, die App lädt sie nicht hoch. Zählungen liegen in der
+              gemeinsamen Zähl-Datenbank. Sie gehören über den Projektnamen und die Kanten-IDs
+              zusammen. Bewahre die Kanten-Datei auf, damit du oder andere die Zählungen später
+              wieder den Kanten zuordnen können.
             </Text>
             <Text>
               Die Kanten kommen aus TILDA: Region → Export → Straßenkanten (
               <Code>parkings_edges</Code>) als GeoJSON-FeatureCollection (v1).
             </Text>
             <Text>
-              <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
-                Testdaten herunterladen (dann hochladen)
-              </TextLink>
+              <Strong>Neue Kanten-Datei für ein echtes Projekt:</Strong> Nach dem Import ordnet die
+              App jede Zählung einer Kante zu: per ID, sonst per Mittelpunkt im Umkreis von 8 m.
+              Bist du angemeldet, speichert sie diese Zuordnung sofort in der Zähl-Datenbank, ebenso
+              beim Auswählen des Projekts. Zählwerte ändern sich dabei nie. Offene Fälle und
+              Konflikte entscheidest du unter „Kanten zuordnen“.
             </Text>
             <Text>
-              Nach dem Zählen dieselbe Kampagne neu zuordnen:{' '}
-              <TextLink href={sampleEdgesRemapUrl} target="_blank" rel="noreferrer">
-                Testdaten zum Neu-Zuordnen herunterladen
-              </TextLink>
-              . Gleicher Projektname. Fälle: gleiche ID mit geänderten Kapazitäten; neue ID am
-              selben Ort (Mittelpunkt); Kante ohne Partner; neue Kante.
+              <Strong>Gefahrlos ausprobieren:</Strong> Vorher abmelden. Abgemeldet zeigt die App die
+              Zuordnung nur an und schreibt nichts in die Zähl-Datenbank. Passt das Ergebnis,
+              anmelden und das Projekt oben erneut auswählen. Als Sicherung vorher im Schritt Export
+              „JSON exportieren“.
             </Text>
+            <Text>
+              <Strong>Testdaten (nur für ein eigenes Test-Projekt):</Strong> Diese Dateien nie in
+              ein echtes Projekt importieren, solange du angemeldet bist: Die App würde die echten
+              Zählungen den Test-Kanten zuordnen.
+            </Text>
+            <ul className="list-disc space-y-1 pl-5 text-sm/6 text-zinc-400">
+              <li>
+                <TextLink href={sampleEdgesGithubUrl} target="_blank" rel="noreferrer">
+                  Testdaten herunterladen
+                </TextLink>
+                , dann hier importieren.
+              </li>
+              <li>
+                Nach dem Zählen im selben Test-Projekt:{' '}
+                <TextLink href={sampleEdgesRemapUrl} target="_blank" rel="noreferrer">
+                  Testdaten zum Neu-Zuordnen herunterladen
+                </TextLink>
+                . Fälle: gleiche ID mit geänderten Kapazitäten; neue ID am selben Ort (Mittelpunkt);
+                Kante ohne Partner; neue Kante.
+              </li>
+            </ul>
           </div>
         </MotionCollapse>
         {!dataset ? (
@@ -446,7 +464,9 @@ export function DatasetPanel() {
               if (!pendingText || !dataset) return
               if (selectedRow?.local) {
                 const confirmed = window.confirm(
-                  `Vorhandene lokale Kanten für „${dataset}“ werden ersetzt. Fortfahren?`,
+                  auth.authenticated
+                    ? `Vorhandene lokale Kanten für „${dataset}“ werden ersetzt. Du bist angemeldet: Neue Zuordnungen der Zählungen werden sofort in der Zähl-Datenbank gespeichert. Fortfahren?`
+                    : `Vorhandene lokale Kanten für „${dataset}“ werden ersetzt. Du bist abgemeldet: Die Zähl-Datenbank bleibt unverändert. Fortfahren?`,
                 )
                 if (!confirmed) return
               }

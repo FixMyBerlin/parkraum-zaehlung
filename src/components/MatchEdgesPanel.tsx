@@ -60,7 +60,12 @@ export function MatchEdgesPanel({ dataset, collection, records }: Props) {
           {result.summary.manual}. Offen: {result.summary.unresolved}. Konflikt:{' '}
           {result.summary.conflict}. Kein Match: {result.summary.none}.
         </Text>
-        {!authenticated ? <Callout className="mt-3">{osmLoginRequiredMessage}</Callout> : null}
+        {!authenticated ? (
+          <Callout className="mt-3">
+            Abgemeldet: nur Vorschau, in der Zähl-Datenbank wird nichts gespeichert.{' '}
+            {osmLoginRequiredMessage}.
+          </Callout>
+        ) : null}
         {assign.isError ? (
           <Callout className="mt-3" tone="error">
             {assign.error instanceof Error ? assign.error.message : 'Zuordnung fehlgeschlagen'}
