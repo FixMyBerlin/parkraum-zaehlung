@@ -1,5 +1,5 @@
 # Source: tech-stack skill — examples/dependabot.yml.template (tilda-geo).
-# Schedule is the private-OSS one: first Friday of the month.
+# Schedule is the private-OSS one: first Thursday of the month.
 # No docker ecosystem (no Dockerfile) and no `ignore` block (no nitro/TanStack Start here).
 version: 2
 updates:
@@ -8,7 +8,7 @@ updates:
       - /
     schedule:
       interval: cron
-      cronjob: '0 7 * * FRI#1'
+      cronjob: '0 7 * * THU#1'
       timezone: Europe/Berlin
     cooldown:
       default-days: 5
@@ -85,7 +85,7 @@ updates:
     directory: /
     schedule:
       interval: cron
-      cronjob: '0 7 * * FRI#1'
+      cronjob: '0 7 * * THU#1'
       timezone: Europe/Berlin
     cooldown:
       default-days: 5
