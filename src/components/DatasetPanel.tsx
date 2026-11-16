@@ -43,6 +43,8 @@ const projectNameHelp =
 const invalidProjectNameMessage =
   'Projektname: 3–60 Zeichen, nur Kleinbuchstaben, Ziffern und Bindestriche (z. B. loerrach).'
 
+const nowIso = () => new Date().toISOString()
+
 async function matchAfterEdgesLoaded(
   name: string,
   collection: CountingEdgesGeoJSON,
@@ -127,7 +129,7 @@ export function DatasetPanel() {
         throw new Error(`Projekt „${name}“ existiert bereits.`)
       }
       await countStore.putProjectMeta(name, {
-        createdAt: new Date().toISOString(),
+        createdAt: nowIso(),
         createdBy: auth.displayName,
       })
       return name
